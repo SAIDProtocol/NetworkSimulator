@@ -5,11 +5,11 @@
  */
 package edu.rutgers.winlab.networksimulator.network;
 
-import edu.rutgers.winlab.networksimulator.common.Data;
+import java.util.ArrayList;
+import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
 /**
  *
@@ -30,7 +30,6 @@ public class NodeTest {
 
     @Test
     public void testSomeMethod() {
-
     }
 
 }

@@ -1,30 +1,46 @@
 package edu.rutgers.winlab.networksimulator.common;
 
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
 /**
  *
- * @author jiachen
+ * @author Jiachen Chen
+ * @param <T>
  */
-public class QueuePoller {
+public class QueuePoller<T> {
 
-    private final Function<Data, Long> dataHandler;
+    private final BiFunction<Data, T, Long> dataHandler;
     private final PrioritizedQueue queue;
     private boolean busy = false;
 
-    public QueuePoller(Function<Data, Long> dataHandler, PrioritizedQueue queue) {
+    public QueuePoller(BiFunction<Data, T, Long> dataHandler, PrioritizedQueue queue) {
         this.dataHandler = dataHandler;
         this.queue = queue;
     }
 
-    public long enQueue(Data d, boolean prioritized) {
-        long ret = queue.enQueue(d, prioritized);
+    public long enQueue(Data d, T val, boolean prioritized) {
+        long ret = queue.enQueue(d, val, prioritized);
         if (!busy) {
             busy = true;
             runQueue();
         }
         return ret;
+    }
+
+    private void runQueue(Object... params) {
+        Tuple2<Data, T> d = queue.deQueue();
+        if (d == null) {
+            busy = false;
+        } else {
+            long now = Timeline.nowInUs();
+            long v = dataHandler.apply(d.getV1(), d.getV2());
+            Timeline.addEvent(now + v, this::runQueue);
+        }
+    }
+
+    public boolean isBusy() {
+        return busy;
     }
 
     public long clear() {
@@ -35,19 +51,7 @@ public class QueuePoller {
         return queue.getSizeInBits();
     }
 
-    public Stream<Data> stream() {
+    public Stream<Tuple2<Data, T>> stream() {
         return queue.stream();
     }
-    
-    private void runQueue(Object... params) {
-        Data d = queue.deQueue();
-        if (d == null) {
-            busy = false;
-        } else {
-            long now = Timeline.nowInUs();
-            long v = dataHandler.apply(d);
-            Timeline.addEvent(now + v, this::runQueue);
-        }
-    }
-
 }

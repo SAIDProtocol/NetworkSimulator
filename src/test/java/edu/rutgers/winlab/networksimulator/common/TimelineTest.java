@@ -2,7 +2,6 @@ package edu.rutgers.winlab.networksimulator.common;
 
 import java.util.ArrayList;
 import java.util.function.Consumer;
-import java.util.logging.Logger;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -17,8 +16,7 @@ import org.junit.Test;
  */
 public class TimelineTest {
 
-    private static final Logger LOG = Logger.getLogger(TimelineTest.class.getName());
-
+//    private static final Logger LOG = Logger.getLogger(TimelineTest.class.getName());
     public TimelineTest() {
     }
 
