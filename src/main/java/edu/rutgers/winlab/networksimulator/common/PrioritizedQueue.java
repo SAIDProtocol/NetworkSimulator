@@ -1,5 +1,6 @@
 package edu.rutgers.winlab.networksimulator.common;
 
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -12,38 +13,50 @@ public interface PrioritizedQueue<T> {
     /**
      * Adds a data into the queue.
      *
-     * @param d the data to be added into the queue.
      * @param val additional information with the data
      * @param prioritized if the data should be added as prioritized.
-     * @return the number of BITS discarded from the queue.
      */
-    public long enQueue(Data d, T val, boolean prioritized);
+    public void enQueue(T val, boolean prioritized);
 
+    /**
+     * Adds a data into the queue.
+     *
+     * @param val additional information with the data
+     * @param prioritized if the data should be added as prioritized.
+     * @param consumer called on each entry before dropping
+     */
+    public void enQueue(T val, boolean prioritized, Consumer<T> consumer);
+    
     /**
      * Retrieves a data from the queue.
      *
      * @return the data at the head of the queue, null if queue is empty.
      */
-    public Tuple2<Data, T> deQueue();
+    public T deQueue();
 
     /**
      * Clears all the items in the queue.
      *
-     * @return the number of BITS cleared from the queue.
+     * @param consumer will be called for each entry before deletion
      */
-    public long clear();
+    public void clear(Consumer<T> consumer);
 
     /**
-     * Gets the current size of the queue.
-     *
-     * @return the number of BITS currently in the queue.
+     * Clears all the items in the queue.
      */
-    public long getSizeInBits();
+    public void clear();
+
+    /**
+     * Gets the current size (# of items) of the queue.
+     *
+     * @return the number of entries currently in the queue.
+     */
+    public int getSize();
 
     /**
      * Gets the stream of the queue.
      *
      * @return
      */
-    public Stream<Tuple2<Data, T>> stream();
+    public Stream<T> stream();
 }

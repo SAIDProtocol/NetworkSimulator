@@ -1,6 +1,7 @@
 package edu.rutgers.winlab.networksimulator.common;
 
-import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
@@ -10,31 +11,38 @@ import java.util.stream.Stream;
  */
 public class QueuePoller<T> {
 
-    private final BiFunction<Data, T, Long> dataHandler;
-    private final PrioritizedQueue queue;
+    private final Function<T, Long> dataHandler;
+    private final PrioritizedQueue<T> queue;
     private boolean busy = false;
 
-    public QueuePoller(BiFunction<Data, T, Long> dataHandler, PrioritizedQueue queue) {
+    public QueuePoller(Function<T, Long> dataHandler, PrioritizedQueue<T> queue) {
         this.dataHandler = dataHandler;
         this.queue = queue;
     }
 
-    public long enQueue(Data d, T val, boolean prioritized) {
-        long ret = queue.enQueue(d, val, prioritized);
+    public void enQueue(T val, boolean prioritized) {
+        queue.enQueue(val, prioritized);
         if (!busy) {
             busy = true;
             runQueue();
         }
-        return ret;
+    }
+    
+    public void enQueue(T val, boolean prioritized, Consumer<T> consumer) {
+        queue.enQueue(val, prioritized, consumer);
+        if (!busy) {
+            busy = true;
+            runQueue();
+        }
     }
 
     private void runQueue(Object... params) {
-        Tuple2<Data, T> d = queue.deQueue();
-        if (d == null) {
+        T val = queue.deQueue();
+        if (val == null) {
             busy = false;
         } else {
             long now = Timeline.nowInUs();
-            long v = dataHandler.apply(d.getV1(), d.getV2());
+            long v = dataHandler.apply(val);
             Timeline.addEvent(now + v, this::runQueue);
         }
     }
@@ -43,15 +51,21 @@ public class QueuePoller<T> {
         return busy;
     }
 
-    public long clear() {
-        return queue.clear();
+    public void clear() {
+        queue.clear();
+    }
+    
+    public void clear(Consumer<T> consumer) {
+        queue.clear(consumer);
     }
 
-    public long getSizeInBits() {
-        return queue.getSizeInBits();
+    public int getSize() {
+        return queue.getSize();
     }
 
-    public Stream<Tuple2<Data, T>> stream() {
+    public Stream<T> stream() {
         return queue.stream();
     }
+
+
 }

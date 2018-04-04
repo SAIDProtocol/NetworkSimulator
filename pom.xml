@@ -45,6 +45,7 @@
                     <outputDirectory>${project.build.directory}/jacoco-ut</outputDirectory>
                     <excludes>
                         <exclude>edu/rutgers/winlab/networksimulator/common/Tuple?.*</exclude>
+                        <exclude>edu/rutgers/winlab/networksimulator/common/RandomData.*</exclude>
                     </excludes>
                     <rules>
                         <rule>

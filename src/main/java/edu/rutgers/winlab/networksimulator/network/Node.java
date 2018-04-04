@@ -4,6 +4,8 @@ import edu.rutgers.winlab.networksimulator.common.Data;
 import edu.rutgers.winlab.networksimulator.common.PrioritizedQueue;
 import edu.rutgers.winlab.networksimulator.common.QueuePoller;
 import edu.rutgers.winlab.networksimulator.common.Timeline;
+import edu.rutgers.winlab.networksimulator.common.Tuple1;
+import edu.rutgers.winlab.networksimulator.common.Tuple2;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.function.Consumer;
@@ -35,9 +37,10 @@ public abstract class Node {
     private final String name;
     private final HashMap<Node, Link> links = new HashMap<>();
     private final ArrayList<Link> abortedLinks = new ArrayList<>();
-    private final QueuePoller<Node> incomingQueue;
+    private final QueuePoller<Tuple2<Node, Data>> incomingQueue;
+    private final HashMap<Node, Tuple1<Long>> bitsDiscarded = new HashMap<>();
 
-    public Node(String name, PrioritizedQueue incomingQueue) {
+    public Node(String name, PrioritizedQueue<Tuple2<Node, Data>> incomingQueue) {
         this.name = name;
         this.incomingQueue = new QueuePoller<>(this::handleData, incomingQueue);
     }
@@ -63,7 +66,7 @@ public abstract class Node {
         abortedLinks.clear();
     }
 
-    protected abstract long handleData(Data d, Node source);
+    protected abstract long handleData(Tuple2<Node, Data> t);
 
     protected void sendData(Node destination, Data d, boolean prioritized) {
         Link l = links.get(destination);
@@ -88,16 +91,29 @@ public abstract class Node {
         }
     }
 
+    private void addBitsDiscarded(Tuple2<Node, Data> t) {
+        Node n = t.getV1();
+        Tuple1<Long> val = bitsDiscarded.get(n);
+        if (val == null) {
+            bitsDiscarded.put(n, val = new Tuple1<>(0L));
+        }
+        val.setV1(val.getV1() + t.getV2().getSizeInBits());
+    }
+
+    private void handleIncomingData(Node source, Data d) {
+        incomingQueue.enQueue(new Tuple2<>(source, d), false, this::addBitsDiscarded);
+    }
+
     public class Link {
 
         private final Node destination;
         private final int bwBitsPerMS;
         private final long delayInUS;
-        private final QueuePoller<Long> queuePoller;
+        private final QueuePoller<Data> queuePoller;
         private long bitsSent = 0, bitsDiscarded = 0;
         private boolean connected = true;
 
-        public Link(Node destination, int bwBitsPerMS, long delayInMS, PrioritizedQueue queue) {
+        public Link(Node destination, int bwBitsPerMS, long delayInMS, PrioritizedQueue<Data> queue) {
             this.destination = destination;
             this.bwBitsPerMS = bwBitsPerMS;
             this.delayInUS = delayInMS * Timeline.US_IN_MS;
@@ -136,32 +152,34 @@ public abstract class Node {
             return connected;
         }
 
+        private void addDiscardedPacket(Data d) {
+            bitsDiscarded += d.getSizeInBits();
+        }
+
         public void enQueue(Data data, boolean prioritized) {
-            int sizeInBits = data.getSizeInBits();
-            long transmitTimeInUs = sizeInBits * Timeline.US_IN_MS / bwBitsPerMS;
-            bitsDiscarded += queuePoller.enQueue(data, transmitTimeInUs, prioritized);
+            queuePoller.enQueue(data, prioritized, this::addDiscardedPacket);
         }
 
         public void abort() {
             connected = false;
-            bitsDiscarded += queuePoller.clear();
+            queuePoller.clear(this::addDiscardedPacket);
         }
 
-        private long handleData(Data d, Long transmitTimeInUs) {
+        private long handleData(Data data) {
+            int sizeInBits = data.getSizeInBits();
+            long transmitTimeInUs = sizeInBits * Timeline.US_IN_MS / bwBitsPerMS;
             long now = Timeline.nowInUs();
             long arrivalTime = now + transmitTimeInUs + delayInUS;
             Timeline.addEvent(arrivalTime,
                     ps -> {
-                        Data data = (Data) ps[2];
-                        int size = data.getSizeInBits();
+                        Data dt = (Data) ps[2];
                         if (isConnected()) {
-                            ((Node) ps[0]).incomingQueue.enQueue(data, (Node) ps[1], false);
-                            bitsSent += size;
+                            ((Node) ps[0]).handleIncomingData((Node) ps[1], dt);
+                            bitsSent += dt.getSizeInBits();
                         } else {
-                            bitsDiscarded += size;
+                            addDiscardedPacket(dt);
                         }
-                    },
-                    destination, Node.this, d);
+                    }, destination, Node.this, data);
             return transmitTimeInUs;
         }
     }

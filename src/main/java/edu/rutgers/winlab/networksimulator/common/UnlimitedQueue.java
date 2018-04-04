@@ -1,6 +1,7 @@
 package edu.rutgers.winlab.networksimulator.common;
 
 import java.util.ArrayDeque;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -10,48 +11,54 @@ import java.util.stream.Stream;
  */
 public class UnlimitedQueue<T> implements PrioritizedQueue<T> {
 
-    protected final ArrayDeque<Tuple2<Data, T>> normalQueue = new ArrayDeque<>(),
+    protected final ArrayDeque<T> normalQueue = new ArrayDeque<>(),
             priorityQueue = new ArrayDeque<>();
-    protected long sizeInBits = 0;
+    protected int size = 0;
 
     @Override
-    public long enQueue(Data d, T val, boolean prioritized) {
+    public void enQueue(T val, boolean prioritized) {
         if (prioritized) {
-            priorityQueue.offer(new Tuple2<>(d, val));
+            priorityQueue.offer(val);
         } else {
-            normalQueue.offer(new Tuple2<>(d, val));
+            normalQueue.offer(val);
         }
-        sizeInBits += d.getSizeInBits();
-        return 0;
+        size++;
     }
 
     @Override
-    public Tuple2<Data, T> deQueue() {
-        Tuple2<Data, T> d = priorityQueue.poll();
-        if (d == null) {
-            d = normalQueue.poll();
-        }
-        sizeInBits -= (d == null) ? 0 : d.getV1().getSizeInBits();
-        return d;
+    public void enQueue(T val, boolean prioritized, Consumer<T> consumer) {
+        enQueue(val, prioritized);
     }
 
     @Override
-    public long clear() {
+    public T deQueue() {
+        T val = priorityQueue.poll();
+        val = (val == null) ? normalQueue.poll() : val;
+        size -= (val == null) ? 0 : 1;
+        return val;
+    }
+
+    @Override
+    public void clear(Consumer<T> consumer) {
+        priorityQueue.forEach(consumer);
+        normalQueue.forEach(consumer);
+        clear();
+    }
+
+    @Override
+    public void clear() {
         normalQueue.clear();
         priorityQueue.clear();
-        long ret = sizeInBits;
-        sizeInBits = 0;
-        return ret;
+        size = 0;
     }
 
     @Override
-    public long getSizeInBits() {
-        return sizeInBits;
+    public int getSize() {
+        return size;
     }
 
     @Override
-    public Stream<Tuple2<Data, T>> stream() {
+    public Stream<T> stream() {
         return Stream.concat(priorityQueue.stream(), normalQueue.stream());
     }
-
 }

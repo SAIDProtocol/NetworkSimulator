@@ -5,8 +5,6 @@
  */
 package edu.rutgers.winlab.networksimulator.network;
 
-import java.util.ArrayList;
-import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
