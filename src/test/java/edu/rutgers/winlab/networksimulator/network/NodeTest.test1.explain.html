@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Explain what's happening in NodeTest.test1</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style> 
+            th.th1, th.th2 {
+                text-align: center;
+            }
+            td.time {
+                text-align: right;
+            }
+            span.show {
+                color: #ff0000;
+            }
+            td {
+            	text-align: left;
+            }
+
+            table.blueTable {
+                border: 1px solid #1C6EA4;
+                background-color: #EEEEEE;
+                text-align: left;
+                border-collapse: collapse;
+            }
+            table.blueTable td, table.blueTable th {
+                border: 1px solid #AAAAAA;
+                padding: 3px 2px;
+            }
+            table.blueTable tbody td {
+                font-size: 13px;
+            }
+            table.blueTable thead {
+                background: #1C6EA4;
+                background: -moz-linear-gradient(top, #5592bb 0%, #327cad 66%, #1C6EA4 100%);
+                background: -webkit-linear-gradient(top, #5592bb 0%, #327cad 66%, #1C6EA4 100%);
+                background: linear-gradient(to bottom, #5592bb 0%, #327cad 66%, #1C6EA4 100%);
+                border-bottom: 2px solid #444444;
+            }
+            table.blueTable tbody tr:nth-child(even) {
+                background: #D0E4F5;
+            }
+            table.blueTable thead th {
+                font-size: 15px;
+                font-weight: bold;
+                color: #FFFFFF;
+                border-left: 2px solid #D0E4F5;
+            }
+            table.blueTable thead th:first-child {
+                border-left: none;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Explain what's happening in NodeTest.test1</h1>
+        <hr/>
+        <h2>Timeline</h2>
+        <p>(S: Start, E: End)</p>
+        <table class="blueTable">
+            <thead>
+                <tr>
+                    <th rowspan="2" class="th1">Time<br/>(&#181;s)</th>
+                    <th class="th1" colspan="3">N1</th>
+                    <th class="th1" colspan="3">N2</th>
+                    <th class="th1" colspan="3">N3</th>
+                </tr>
+                <tr>
+                    <th class="th2">Arrive</th>
+                    <th class="th2">Process</th>
+                    <th class="th2">Send</th>
+                    <th class="th2">Arrive</th>
+                    <th class="th2">Process</th>
+                    <th class="th2">Send</th>
+                    <th class="th2">Arrive</th>
+                    <th class="th2">Process</th>
+                    <th class="th2">Send</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="time">0</td>
+                    <td></td>
+                    <td></td>
+                    <td>S N2 p1 (p1)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">1,000</td>
+                    <td></td>
+                    <td></td>
+                    <td>E N2 p1 ()</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">2,000</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>N1 p1</td>
+                    <td><span class="show">S p1</span></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">4,000</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E p1</td>
+                    <td>S N3 p2 (p2, p3)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">5,000</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E N3 p2 (p3)<br/>S N3 p3 (p3)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">6,000</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E N3 p3 ()</td>
+                    <td>N2 p2</td>
+                    <td><span class="show">S p2</span></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">7,000</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>N2 p3</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">7,050</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E p2<br/><span class="show">S p3</span></td>
+                    <td>S N2 p4 (p4, p5)<br/>&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="time">8,050</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E N2 p4 (p5)<br/>S N2 p5 (p5)</td>
+                </tr>
+                <tr>
+                    <td class="time">8,100</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E p3</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">9,050</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>N3 p4<br/>&nbsp;</td>
+                    <td><span class="show">S p4</span><br/>&nbsp;</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E N2 p5 (p6, p7)<br/>S N2 p6 (p6, p7)</td>
+                </tr>
+                <tr>
+                    <td class="time">10,050</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>N3 p5<br/>&nbsp;</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E N2 p6 (p7)<br/>S N2 p7 (p7)</td>
+                </tr>
+                <tr>
+                    <td class="time">11,050</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>N3 p6<br/>&nbsp;</td>
+                    <td>E p4<br/><span class="show">S p5</span></td>
+                    <td>S N1 p8 (p8, p9)<br/>&nbsp;</td>
+                    <td></td>
+                    <td></td>
+                    <td>E N2 p7<br/>&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="time">12,050</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>N3 p7<br/>&nbsp;</td>
+                    <td></td>
+                    <td>E N1 p8 (p9)<br/>S N1 p9 (p9)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">13,050</td>
+                    <td>N2 p8<br/>&nbsp;</td>
+                    <td><span class="show">S p8</span><br/>E p8</td>
+                    <td></td>
+                    <td></td>
+                    <td>E p5<br/><span class="show">S p6</span></td>
+                    <td>E N1 p9 (p10, p11)<br/>S N1 p10 (p10, p11)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">14,050</td>
+                    <td>N2 p9<br/>&nbsp;</td>
+                    <td><span class="show">S p9</span><br/>E p9</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E N1 p10 (p11)<br/>S N1 p11 (p11)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">15,050</td>
+                    <td>N2 p10<br/>&nbsp;</td>
+                    <td><span class="show">S p10</span><br/>E p10</td>
+                    <td></td>
+                    <td></td>
+                    <td>E p6<br/><span class="show">S p7</span></td>
+                    <td>E N1 p11 (p12, p13)<br/>S N1 p12 (p12, p13)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">16,050</td>
+                    <td>N2 p11<br/>&nbsp;</td>
+                    <td><span class="show">S p11</span><br/>E p11</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E N1 p12 (p13)<br/>S N1 p13 (p13)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">17,050</td>
+                    <td>N2 p12<br/>&nbsp;</td>
+                    <td><span class="show">S p12</span><br/>E p12</td>
+                    <td></td>
+                    <td></td>
+                    <td>E p7<br/>&nbsp;</td>
+                    <td>E N1 p13 (p14, p15)<br/>S N1 p14 (p14, p15)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">18,050</td>
+                    <td>N2 p13<br/>&nbsp;</td>
+                    <td><span class="show">S p13</span><br/>E p13</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E N1 p14 (p15)<br/>S N1 p15 (p15)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">19,050</td>
+                    <td>N2 p14<br/>&nbsp;</td>
+                    <td><span class="show">S p14</span><br/>E p14</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>E N1 p15 ()<br/>&nbsp;</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="time">20,050</td>
+                    <td>N2 p15<br/>&nbsp;</td>
+                    <td><span class="show">S p15</span><br/>E p15</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+        <hr/>
+        <h2>Result</h2>
+        <p>(Put all the red text together)</p>
+        <table class="blueTable">
+            <thead>
+                <tr>
+                    <th class="th1">Time (&#181;s)</th>
+                    <th class="th1">Actor</th>
+                    <th class="th1">From</th>
+                    <th class="th1">Serial</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="time">2,000</td>
+                    <td>N2</td>
+                    <td>N1</td>
+                    <td>1</td>
+                </tr>
+                <tr>
+                    <td class="time">6,000</td>
+                    <td>N3</td>
+                    <td>N2</td>
+                    <td>2</td>
+                </tr>
+                <tr>
+                    <td class="time">7,050</td>
+                    <td>N3</td>
+                    <td>N2</td>
+                    <td>3</td>
+                </tr>
+                <tr>
+                    <td class="time">9,050</td>
+                    <td>N2</td>
+                    <td>N3</td>
+                    <td>4</td>
+                </tr>
+                <tr>
+                    <td class="time">11,050</td>
+                    <td>N2</td>
+                    <td>N3</td>
+                    <td>5</td>
+                </tr>
+                <tr>
+                    <td class="time" rowspan="2">13,050</td>
+                    <td>N1</td>
+                    <td>N2</td>
+                    <td>8</td>
+                </tr>
+                <tr>
+                    <td>N2</td>
+                    <td>N3</td>
+                    <td>6</td>
+                </tr>
+                <tr>
+                    <td class="time">14,050</td>
+                    <td>N1</td>
+                    <td>N2</td>
+                    <td>9</td>
+                </tr>
+                <tr>
+                    <td class="time" rowspan="2">15,050</td>
+                    <td>N2</td>
+                    <td>N3</td>
+                    <td>7</td>
+                </tr>
+                <tr>
+                    <td>N1</td>
+                    <td>N2</td>
+                    <td>10</td>
+                </tr>
+                <tr>
+                    <td class="time">16,050</td>
+                    <td>N1</td>
+                    <td>N2</td>
+                    <td>11</td>
+                </tr>
+                <tr>
+                    <td class="time">17,050</td>
+                    <td>N1</td>
+                    <td>N2</td>
+                    <td>12</td>
+                </tr>
+                <tr>
+                    <td class="time">18,050</td>
+                    <td>N1</td>
+                    <td>N2</td>
+                    <td>13</td>
+                </tr>
+                <tr>
+                    <td class="time">19,050</td>
+                    <td>N1</td>
+                    <td>N2</td>
+                    <td>14</td>
+                </tr>
+                <tr>
+                    <td class="time">20,050</td>
+                    <td>N1</td>
+                    <td>N2</td>
+                    <td>15</td>
+                </tr>
+            </tbody>
+        </table>
+    </body>
+</html>
