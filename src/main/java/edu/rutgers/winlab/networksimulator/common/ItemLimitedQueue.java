@@ -35,7 +35,7 @@ public class ItemLimitedQueue<T> extends UnlimitedQueue<T> {
     }
 
     @Override
-    public void enQueue(T val, boolean prioritized, Consumer<T> consumer) {
+    public void enQueue(T val, boolean prioritized, Consumer<? super T> consumer) {
         if (size < capacityInItems) {
             super.enQueue(val, prioritized);
             return;

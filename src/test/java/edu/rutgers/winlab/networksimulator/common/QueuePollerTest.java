@@ -34,13 +34,15 @@ public class QueuePollerTest {
     @Test
     public void test1() {
         Object[] target = new Object[]{0L, 1000L, 3000L, 7000L, 10000L, 15000L, 22000L, 28000L};
+        Object[] idleTarget = new Object[]{28000L};
         ArrayList<Long> result = new ArrayList<>();
+        ArrayList<Long> idleResult = new ArrayList<>();
 
         PrioritizedQueue<Long> queue = new UnlimitedQueue<>();
         QueuePoller<Long> p = new QueuePoller<>(l -> {
             result.add(Timeline.nowInUs());
             return l;
-        }, queue);
+        }, queue, v -> idleResult.add(Timeline.nowInUs()));
 
         Consumer<Object[]> addEventHandler = objs -> p.enQueue((Long) objs[0], (Boolean) objs[1]);
 
@@ -55,6 +57,7 @@ public class QueuePollerTest {
 
         assertEquals(Long.MIN_VALUE, Timeline.nowInUs());
         assertEquals(28000L, Timeline.run());
+        assertArrayEquals(idleTarget, idleResult.toArray());
         assertArrayEquals(target, result.toArray());
         assertEquals(Long.MIN_VALUE, Timeline.nowInUs());
     }
@@ -62,13 +65,15 @@ public class QueuePollerTest {
     @Test
     public void test2() {
         Object[] target = new Object[]{0L, 1000L, 3000L, 15000L, 21000L, 28000L};
+        Object[] idleTarget = new Object[]{7000L, 28000L};
         ArrayList<Long> result = new ArrayList<>();
+        ArrayList<Long> idleResult = new ArrayList<>();
 
         PrioritizedQueue<Long> queue = new UnlimitedQueue<>();
         QueuePoller<Long> p = new QueuePoller<>(l -> {
             result.add(Timeline.nowInUs());
             return l;
-        }, queue);
+        }, queue, v -> idleResult.add(Timeline.nowInUs()));
 
         Consumer<Long> dropDataConsumer = l -> fail("Should not reach here!");
 
@@ -100,6 +105,7 @@ public class QueuePollerTest {
 
         assertEquals(Long.MIN_VALUE, Timeline.nowInUs());
         assertEquals(28000L, Timeline.run());
+        assertArrayEquals(idleTarget, idleResult.toArray());
         assertArrayEquals(target, result.toArray());
         assertEquals(Long.MIN_VALUE, Timeline.nowInUs());
 
@@ -108,13 +114,15 @@ public class QueuePollerTest {
     @Test
     public void test3() {
         Object[] target = new Object[]{0L, 1000L, 3000L, 15000L, 21000L, 28000L};
+        Object[] idleTarget = new Object[]{7000L, 28000L};
         ArrayList<Long> result = new ArrayList<>();
+        ArrayList<Long> idleResult = new ArrayList<>();
 
         PrioritizedQueue<Long> queue = new UnlimitedQueue<>();
         QueuePoller<Long> p = new QueuePoller<>(l -> {
             result.add(Timeline.nowInUs());
             return l;
-        }, queue);
+        }, queue, v -> idleResult.add(Timeline.nowInUs()));
 
         Consumer<Object[]> addEventHandler = objs
                 -> p.enQueue((Long) objs[0], (Boolean) objs[1]);
@@ -142,6 +150,7 @@ public class QueuePollerTest {
 
         assertEquals(Long.MIN_VALUE, Timeline.nowInUs());
         assertEquals(28000L, Timeline.run());
+        assertArrayEquals(idleTarget, idleResult.toArray());
         assertArrayEquals(target, result.toArray());
         assertEquals(Long.MIN_VALUE, Timeline.nowInUs());
 

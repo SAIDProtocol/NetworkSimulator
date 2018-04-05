@@ -17,17 +17,22 @@ import java.util.function.Consumer;
  */
 public abstract class Node {
 
-    public static final long BW_IN_KBPS = Data.K_BIT / Timeline.MS_IN_SECOND;
-    public static final long BW_IN_MBPS = Data.M_BIT / Timeline.MS_IN_SECOND;
+    // 1kbps = 1,000 bits per 1,000 s = 1 bit per ms
+    public static final int BW_IN_KBPS = (int) (Data.K_BIT / Timeline.MS_IN_SECOND);
+    // 1Mbps = 1,000,000 bits per 1,000 s = 1,000 bits per ms
+    public static final int BW_IN_MBPS = (int) (Data.M_BIT / Timeline.MS_IN_SECOND);
 
-    public static void linkNodes(Node n1, Node n2, int bwInBitsPerMs, long delayInMs, PrioritizedQueue queueN1N2, PrioritizedQueue queueN2N1) {
-        n1.link(n2, bwInBitsPerMs, delayInMs, queueN1N2);
-        n2.link(n1, bwInBitsPerMs, delayInMs, queueN2N1);
+    public static void linkNodes(Node n1, Node n2,
+            int bwInBitsPerMs, long delayInUS,
+            PrioritizedQueue<Data> queueN1N2, PrioritizedQueue<Data> queueN2N1) {
+        n1.link(n2, bwInBitsPerMs, delayInUS, queueN1N2);
+        n2.link(n1, bwInBitsPerMs, delayInUS, queueN2N1);
     }
 
-    public static void disconnectNodes(Node n1, Node n2) {
-        n1.disconnect(n2);
-        n2.disconnect(n1);
+    public static Tuple2<Link, Link> disconnectNodes(Node n1, Node n2) {
+        Link l1 = n1.disconnect(n2);
+        Link l2 = n2.disconnect(n1);
+        return new Tuple2<>(l1, l2);
     }
 
     protected static void sendData(Link l, Data d, boolean prioritized) {
@@ -36,13 +41,13 @@ public abstract class Node {
 
     private final String name;
     private final HashMap<Node, Link> links = new HashMap<>();
-    private final ArrayList<Link> abortedLinks = new ArrayList<>();
     private final QueuePoller<Tuple2<Node, Data>> incomingQueue;
     private final HashMap<Node, Tuple1<Long>> bitsDiscarded = new HashMap<>();
 
     public Node(String name, PrioritizedQueue<Tuple2<Node, Data>> incomingQueue) {
         this.name = name;
-        this.incomingQueue = new QueuePoller<>(this::handleData, incomingQueue);
+        this.incomingQueue = new QueuePoller<>(this::handleData, incomingQueue, t -> {
+        });
     }
 
     public String getName() {
@@ -50,23 +55,29 @@ public abstract class Node {
     }
 
     public void forEachLink(Consumer<? super Link> consumer) {
-        forEachConnectedLink(consumer);
-        forEachAbortedLink(consumer);
-    }
-
-    public void forEachConnectedLink(Consumer<? super Link> consumer) {
         links.values().forEach(consumer);
     }
 
-    public void forEachAbortedLink(Consumer<? super Link> consumer) {
-        abortedLinks.forEach(consumer);
+    public Link link(Node another, int bwInBitsPerMs, long delayInUs, PrioritizedQueue<Data> queue) {
+        if (isLinkedWith(another)) {
+            throw new IllegalArgumentException(String.format("%s is already linked to %s.", name, another.name));
+        }
+        Link ret = new Link(another, bwInBitsPerMs, delayInUs, queue);
+        links.put(another, ret);
+        return ret;
     }
 
-    public void clearAbortedLinks() {
-        abortedLinks.clear();
+    public Link disconnect(Node another) {
+        Link l = links.remove(another);
+        if (l != null) {
+            l.abort();
+        }
+        return l;
     }
 
-    protected abstract long handleData(Tuple2<Node, Data> t);
+    public boolean isLinkedWith(Node another) {
+        return links.containsKey(another);
+    }
 
     protected void sendData(Node destination, Data d, boolean prioritized) {
         Link l = links.get(destination);
@@ -76,20 +87,7 @@ public abstract class Node {
         sendData(l, d, prioritized);
     }
 
-    private void link(Node another, int bwInBitsPerMs, long delayInMs, PrioritizedQueue queue) {
-        Link l = links.put(another, new Link(another, bwInBitsPerMs, delayInMs, queue));
-        if (l != null) {
-            throw new IllegalArgumentException(String.format("%s is already linked to %s.", name, another.name));
-        }
-    }
-
-    private void disconnect(Node another) {
-        Link l = links.remove(another);
-        if (l != null) {
-            l.abort();
-            abortedLinks.add(l);
-        }
-    }
+    protected abstract long handleData(Tuple2<Node, Data> t);
 
     private void addBitsDiscarded(Tuple2<Node, Data> t) {
         Node n = t.getV1();
@@ -112,12 +110,14 @@ public abstract class Node {
         private final QueuePoller<Data> queuePoller;
         private long bitsSent = 0, bitsDiscarded = 0;
         private boolean connected = true;
+        private final ArrayList<Consumer<? super Link>> idleHandlers = new ArrayList<>();
 
-        public Link(Node destination, int bwBitsPerMS, long delayInMS, PrioritizedQueue<Data> queue) {
+        public Link(Node destination, int bwBitsPerMS, long delayInUS, PrioritizedQueue<Data> queue) {
             this.destination = destination;
             this.bwBitsPerMS = bwBitsPerMS;
-            this.delayInUS = delayInMS * Timeline.US_IN_MS;
-            queuePoller = new QueuePoller<>(this::handleData, queue);
+            this.delayInUS = delayInUS;
+            queuePoller = new QueuePoller<>(this::handleData, queue, q
+                    -> idleHandlers.forEach(idleHandler -> idleHandler.accept(this)));
         }
 
         public Node getDestination() {
@@ -152,10 +152,6 @@ public abstract class Node {
             return connected;
         }
 
-        private void addDiscardedPacket(Data d) {
-            bitsDiscarded += d.getSizeInBits();
-        }
-
         public void enQueue(Data data, boolean prioritized) {
             queuePoller.enQueue(data, prioritized, this::addDiscardedPacket);
         }
@@ -165,22 +161,34 @@ public abstract class Node {
             queuePoller.clear(this::addDiscardedPacket);
         }
 
+        public boolean addIdleHandler(Consumer<? super Link> e) {
+            return idleHandlers.add(e);
+        }
+
+        public boolean removeIdleHandler(Consumer<? super Link> e) {
+            return idleHandlers.remove(e);
+        }
+
+        private void addDiscardedPacket(Data d) {
+            bitsDiscarded += d.getSizeInBits();
+        }
+
+        // ps[0]: data
+        private void processDataArrival(Object... ps) {
+            Data dt = (Data) ps[0];
+            if (isConnected()) {
+                destination.handleIncomingData(Node.this, dt);
+                bitsSent += dt.getSizeInBits();
+            } else {
+                addDiscardedPacket(dt);
+            }
+        }
+
         private long handleData(Data data) {
-            int sizeInBits = data.getSizeInBits();
-            long transmitTimeInUs = sizeInBits * Timeline.US_IN_MS / bwBitsPerMS;
-            long now = Timeline.nowInUs();
-            long arrivalTime = now + transmitTimeInUs + delayInUS;
-            Timeline.addEvent(arrivalTime,
-                    ps -> {
-                        Data dt = (Data) ps[2];
-                        if (isConnected()) {
-                            ((Node) ps[0]).handleIncomingData((Node) ps[1], dt);
-                            bitsSent += dt.getSizeInBits();
-                        } else {
-                            addDiscardedPacket(dt);
-                        }
-                    }, destination, Node.this, data);
+            long transmitTimeInUs = data.getSizeInBits() * Timeline.US_IN_MS / bwBitsPerMS;
+            Timeline.addEvent(Timeline.nowInUs() + transmitTimeInUs + delayInUS, this::processDataArrival, data);
             return transmitTimeInUs;
         }
+
     }
 }

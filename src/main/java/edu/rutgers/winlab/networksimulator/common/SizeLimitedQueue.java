@@ -11,10 +11,10 @@ import java.util.function.Function;
 public class SizeLimitedQueue<T> extends UnlimitedQueue<T> {
 
     private final long capacityInBits;
-    private final Function<T, Integer> contentSizeConverter;
+    private final Function<? super T, Integer> contentSizeConverter;
     private long sizeInBits = 0;
 
-    public SizeLimitedQueue(long capacityInBits, Function<T, Integer> contentSizeConverter) {
+    public SizeLimitedQueue(long capacityInBits, Function<? super T, Integer> contentSizeConverter) {
         this.capacityInBits = capacityInBits;
         this.contentSizeConverter = contentSizeConverter;
     }
@@ -52,7 +52,7 @@ public class SizeLimitedQueue<T> extends UnlimitedQueue<T> {
     }
 
     @Override
-    public void enQueue(T val, boolean prioritized, Consumer<T> consumer) {
+    public void enQueue(T val, boolean prioritized, Consumer<? super T> consumer) {
         int sz = contentSizeConverter.apply(val);
         long requiredSize = capacityInBits - sz;
         // we have enough space to place the data

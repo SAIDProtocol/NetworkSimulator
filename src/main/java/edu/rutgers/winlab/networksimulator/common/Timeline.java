@@ -11,8 +11,12 @@ import java.util.function.Consumer;
  */
 public class Timeline {
 
-    public static long MS_IN_SECOND = 1000;
-    public static long US_IN_MS = 1000;
+    public static final long MS_IN_SECOND = 1000;
+    public static final long US_IN_MS = 1000;
+
+    public static final long US = 1;
+    public static final long MS = US_IN_MS * US;
+    public static final long SECOND = MS_IN_SECOND * MS;
 
     private static final Timeline TIMELINE = new Timeline();
 

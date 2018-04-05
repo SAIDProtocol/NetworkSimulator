@@ -1,5 +1,6 @@
 package edu.rutgers.winlab.networksimulator.common;
 
+import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -14,10 +15,12 @@ public class QueuePoller<T> {
     private final Function<T, Long> dataHandler;
     private final PrioritizedQueue<T> queue;
     private boolean busy = false;
+    private final Consumer<? super QueuePoller<T>> idleHandler;
 
-    public QueuePoller(Function<T, Long> dataHandler, PrioritizedQueue<T> queue) {
+    public QueuePoller(Function<T, Long> dataHandler, PrioritizedQueue<T> queue, Consumer<? super QueuePoller<T>> idleHandler) {
         this.dataHandler = dataHandler;
         this.queue = queue;
+        this.idleHandler = idleHandler;
     }
 
     public void enQueue(T val, boolean prioritized) {
@@ -40,6 +43,7 @@ public class QueuePoller<T> {
         T val = queue.deQueue();
         if (val == null) {
             busy = false;
+            idleHandler.accept(this);
         } else {
             long now = Timeline.nowInUs();
             long v = dataHandler.apply(val);

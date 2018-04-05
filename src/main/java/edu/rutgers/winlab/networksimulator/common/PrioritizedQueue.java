@@ -25,7 +25,7 @@ public interface PrioritizedQueue<T> {
      * @param prioritized if the data should be added as prioritized.
      * @param consumer called on each entry before dropping
      */
-    public void enQueue(T val, boolean prioritized, Consumer<T> consumer);
+    public void enQueue(T val, boolean prioritized, Consumer<? super T> consumer);
     
     /**
      * Retrieves a data from the queue.
@@ -39,7 +39,7 @@ public interface PrioritizedQueue<T> {
      *
      * @param consumer will be called for each entry before deletion
      */
-    public void clear(Consumer<T> consumer);
+    public void clear(Consumer<? super T> consumer);
 
     /**
      * Clears all the items in the queue.

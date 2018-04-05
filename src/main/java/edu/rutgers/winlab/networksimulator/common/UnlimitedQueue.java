@@ -26,7 +26,7 @@ public class UnlimitedQueue<T> implements PrioritizedQueue<T> {
     }
 
     @Override
-    public void enQueue(T val, boolean prioritized, Consumer<T> consumer) {
+    public void enQueue(T val, boolean prioritized, Consumer<? super T> consumer) {
         enQueue(val, prioritized);
     }
 
@@ -39,7 +39,7 @@ public class UnlimitedQueue<T> implements PrioritizedQueue<T> {
     }
 
     @Override
-    public void clear(Consumer<T> consumer) {
+    public void clear(Consumer<? super T> consumer) {
         priorityQueue.forEach(consumer);
         normalQueue.forEach(consumer);
         clear();
