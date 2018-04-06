@@ -7,20 +7,25 @@ package edu.rutgers.winlab.networksimulator.network;
 
 import edu.rutgers.winlab.networksimulator.common.Data;
 import static edu.rutgers.winlab.networksimulator.common.Helper.assertStreamEquals;
+import edu.rutgers.winlab.networksimulator.common.ItemLimitedQueue;
 import edu.rutgers.winlab.networksimulator.common.PrioritizedQueue;
 import edu.rutgers.winlab.networksimulator.common.RandomData;
 import edu.rutgers.winlab.networksimulator.common.Timeline;
+import edu.rutgers.winlab.networksimulator.common.Tuple1;
 import edu.rutgers.winlab.networksimulator.common.Tuple2;
 import edu.rutgers.winlab.networksimulator.common.Tuple4;
 import edu.rutgers.winlab.networksimulator.common.UnlimitedQueue;
+import edu.rutgers.winlab.networksimulator.network.Node.Link;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.logging.Level;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -61,6 +66,11 @@ public class NodeTest {
         @Override
         public Data copy() {
             return new MyData(getSizeInBits());
+        }
+
+        @Override
+        public String toString() {
+            return "MyData{" + "serial=" + serial + '}';
         }
 
     }
@@ -154,12 +164,8 @@ public class NodeTest {
             }
         });
         Timeline.addEvent(999, ps -> {
-            n1.forEachLink(l -> {
-                assertEquals(true, l.isBusy());
-            });
-            n2.forEachLink(l -> {
-                assertEquals(false, l.isBusy());
-            });
+            assertTrue(n1.linkStream().allMatch(l -> l.isBusy()));
+            assertFalse(n2.linkStream().anyMatch(l -> l.isBusy()));
         });
         Timeline.addEvent(4001, ps -> {
             n1.forEachLink(l -> {
@@ -189,4 +195,79 @@ public class NodeTest {
         assertStreamEquals(target, result.stream());
     }
 
+    @Test
+    public void test2() {
+        MyData.SERIAL = 1;
+        ArrayList<Tuple4<Long, Node, Node, Integer>> result = new ArrayList<>();
+        TestNode n1 = new TestNode("N1", new UnlimitedQueue<>(), 0, result);
+        TestNode n2 = new TestNode("N2", new UnlimitedQueue<>(), 2000, result);
+        TestNode n3 = new TestNode("N3", new UnlimitedQueue<>(), 2000, result);
+        Node.linkNodes(n1, n2, 1 * Node.BW_IN_MBPS, 1 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Tuple2<Link, Link> ret = Node.disconnectNodes(n1, n3);
+        assertEquals(new Tuple2<>(null, null), ret);
+
+        // pkt 2 is killed on the way, pkt 3 is killed when sending, pkt 4 is killed in the queue.
+        Timeline.addEvent(0, ps -> {
+            n1.sendData(n2, new MyData(1000), false); // pkt 1
+            n1.sendData(n2, new MyData(1000), false); // pkt 2
+            n1.sendData(n2, new MyData(1000), false); // pkt 3
+            n1.sendData(n2, new MyData(1000), false); // pkt 4
+            n2.sendData(n1, new MyData(1000), false); // pkt 5
+            n2.sendData(n1, new MyData(1000), false); // pkt 6
+        });
+        Consumer<Link> linkIdleHandler = l -> {
+            assertEquals(4000L, Timeline.nowInUs());
+            if (l.getSource() == n1) {
+                assertEquals(l.getDestination(), n2);
+                assertEquals(1000, l.getBitsSent());
+                assertEquals(3000, l.getBitsDiscarded());
+            } else {
+                fail("Should not reach here!");
+            }
+        };
+        Tuple1<Link> tmpStorage = new Tuple1<>(null);
+        Timeline.addEvent(2500, ps -> {
+            Tuple2<Link, Link> t = Node.disconnectNodes(n1, n2);
+            t.getV1().addIdleHandler(linkIdleHandler);
+            t.getV2().addIdleHandler(linkIdleHandler);
+            tmpStorage.setV1(t.getV2());
+        });
+        Timeline.addEvent(2999, ps -> {
+            tmpStorage.getV1().removeIdleHandler(linkIdleHandler);
+        });
+
+        assertEquals(4000L, Timeline.run());
+        assertStreamEquals(Stream.of(
+                new Tuple4<>(2000L, n2, n1, 1),
+                new Tuple4<>(2000L, n1, n2, 5)), result.stream());
+    }
+
+    @Test
+    public void test3() {
+        MyData.SERIAL = 1;
+        ArrayList<Tuple4<Long, Node, Node, Integer>> result = new ArrayList<>();
+        TestNode n1 = new TestNode("N1", new UnlimitedQueue<>(), 0, result);
+        TestNode n2 = new TestNode("N2", new ItemLimitedQueue<>(3), 2000, result);
+        Node.linkNodes(n1, n2, 1 * Node.BW_IN_MBPS, 1 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Timeline.addEvent(0, ps -> {
+            for (int i = 0; i < 10; i++) {
+                n1.sendData(n2, new MyData(500), false);
+            }
+        });
+        assertEquals(13500L, Timeline.run());
+
+        assertStreamEquals(Stream.of(
+                new Tuple4<>(1500L, n2, n1, 1),
+                new Tuple4<>(3500L, n2, n1, 2),
+                new Tuple4<>(5500L, n2, n1, 3),
+                new Tuple4<>(7500L, n2, n1, 4),
+                new Tuple4<>(9500L, n2, n1, 5),
+                new Tuple4<>(11500L, n2, n1, 9)
+        ), result.stream());
+        assertStreamEquals(Stream.of(new Tuple2<>(n1, 2000L)), n2.bitsDiscardedStream());
+        n2.forEachBitsDiscarded((n, b) -> {
+            assertEquals(n1, n);
+            assertEquals((Long) 2000L, (Long) b);
+        });
+    }
 }

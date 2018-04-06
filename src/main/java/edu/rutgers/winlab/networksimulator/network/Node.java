@@ -8,7 +8,9 @@ import edu.rutgers.winlab.networksimulator.common.Tuple1;
 import edu.rutgers.winlab.networksimulator.common.Tuple2;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * Represents a physical node in the network
@@ -56,6 +58,18 @@ public abstract class Node {
 
     public void forEachLink(Consumer<? super Link> consumer) {
         links.values().forEach(consumer);
+    }
+
+    public Stream<Link> linkStream() {
+        return links.values().stream();
+    }
+
+    public void forEachBitsDiscarded(BiConsumer<? super Node, ? super Long> c) {
+        bitsDiscarded.forEach((n, v) -> c.accept(n, v.getV1()));
+    }
+
+    public Stream<Tuple2<Node, Long>> bitsDiscardedStream() {
+        return bitsDiscarded.entrySet().stream().map(e -> new Tuple2<>(e.getKey(), e.getValue().getV1()));
     }
 
     public Link link(Node another, int bwInBitsPerMs, long delayInUs, PrioritizedQueue<Data> queue) {
@@ -116,8 +130,7 @@ public abstract class Node {
             this.destination = destination;
             this.bwBitsPerMS = bwBitsPerMS;
             this.delayInUS = delayInUS;
-            queuePoller = new QueuePoller<>(this::handleData, queue, q
-                    -> idleHandlers.forEach(idleHandler -> idleHandler.accept(this)));
+            queuePoller = new QueuePoller<>(this::handleData, queue, this::delayFireIdleEvent);
         }
 
         public Node getDestination() {
@@ -188,6 +201,14 @@ public abstract class Node {
             long transmitTimeInUs = data.getSizeInBits() * Timeline.US_IN_MS / bwBitsPerMS;
             Timeline.addEvent(Timeline.nowInUs() + transmitTimeInUs + delayInUS, this::processDataArrival, data);
             return transmitTimeInUs;
+        }
+
+        private void delayFireIdleEvent(Object... params) {
+            Timeline.addEvent(Timeline.nowInUs() + delayInUS, this::fireIdleEvent);
+        }
+
+        private void fireIdleEvent(Object... params) {
+            idleHandlers.forEach(idleHandler -> idleHandler.accept(this));
         }
 
     }
