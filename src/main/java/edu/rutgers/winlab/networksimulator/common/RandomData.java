@@ -2,7 +2,7 @@ package edu.rutgers.winlab.networksimulator.common;
 
 /**
  * Represents a set of random bits on wire.
- * 
+ *
  * @author Jiachen Chen
  */
 public class RandomData implements Data {
@@ -17,10 +17,4 @@ public class RandomData implements Data {
     public int getSizeInBits() {
         return sizeInBits;
     }
-
-    @Override
-    public Data copy() {
-        return this;
-    }
-
 }

@@ -63,7 +63,6 @@ public class NodeTest {
             return serial;
         }
 
-        @Override
         public Data copy() {
             return new MyData(getSizeInBits());
         }
@@ -267,7 +266,7 @@ public class NodeTest {
         assertStreamEquals(Stream.of(new Tuple2<>(n1, 2000L)), n2.bitsDiscardedStream());
         n2.forEachBitsDiscarded((n, b) -> {
             assertEquals(n1, n);
-            assertEquals((Long) 2000L, (Long) b);
+            assertEquals((Long) 2000L, b);
         });
     }
 }

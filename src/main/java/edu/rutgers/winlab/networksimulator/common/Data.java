@@ -6,7 +6,7 @@ package edu.rutgers.winlab.networksimulator.common;
  * @author Jiachen Chen
  */
 public interface Data {
-    
+
     public static int BIT = 1;
     public static int K_BIT = 1000 * BIT;
     public static int M_BIT = 1000 * K_BIT;
@@ -15,6 +15,4 @@ public interface Data {
     public static int M_BYTE = 1024 * K_BYTE;
 
     public int getSizeInBits();
-
-    public Data copy();
 }
