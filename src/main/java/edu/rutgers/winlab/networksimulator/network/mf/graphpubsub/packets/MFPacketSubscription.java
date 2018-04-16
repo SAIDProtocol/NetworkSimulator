@@ -2,7 +2,7 @@ package edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets;
 
 import edu.rutgers.winlab.networksimulator.network.mf.packets.NA;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.GUID;
-import edu.rutgers.winlab.networksimulator.network.mf.packets.MFPacket;
+import edu.rutgers.winlab.networksimulator.network.mf.packets.MFApplicationPacket;
 
 /**
  * A subscription packet.
@@ -17,10 +17,10 @@ import edu.rutgers.winlab.networksimulator.network.mf.packets.MFPacket;
  * 
  * @author Jiachen Chen
  */
-public final class MFPacketSubscription extends MFPacket {
+public final class MFPacketSubscription extends MFApplicationPacket {
 
     public static final int MF_PACKET_TYPE_SUBSCRIPTION = 0x101;
-    public static final int SUBSCRPTION_SIZE = MF_PACKET_HEADER_SIZE;
+    public static final int SUBSCRPTION_SIZE = MF_APPLICATION_PACKET_HEADER_SIZE;
 
     public MFPacketSubscription(GUID subscriber, GUID name) {
         this(subscriber, name, null);

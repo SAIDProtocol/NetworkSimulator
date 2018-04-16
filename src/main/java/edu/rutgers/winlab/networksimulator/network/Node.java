@@ -112,7 +112,7 @@ public abstract class Node {
         val.setV1(val.getV1() + t.getV2().getSizeInBits());
     }
 
-    private void handleIncomingData(Node source, Data d) {
+    protected void enqueueIncomingData(Node source, Data d) {
         incomingQueue.enQueue(new Tuple2<>(source, d), false, this::addBitsDiscarded);
     }
 
@@ -190,7 +190,7 @@ public abstract class Node {
         private void processDataArrival(Object... ps) {
             Data dt = (Data) ps[0];
             if (isConnected()) {
-                destination.handleIncomingData(Node.this, dt);
+                destination.enqueueIncomingData(Node.this, dt);
                 bitsSent += dt.getSizeInBits();
             } else {
                 addDiscardedPacket(dt);

@@ -8,7 +8,7 @@ import edu.rutgers.winlab.networksimulator.common.Data;
  */
 public class GUID implements Data {
 
-    public static final int GUID_SIZE = 20;
+    public static final int GUID_SIZE = 20 * BYTE;
 
     private final int representation;
 

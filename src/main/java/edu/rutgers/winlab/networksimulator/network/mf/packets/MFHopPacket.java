@@ -13,7 +13,7 @@ public abstract class MFHopPacket implements Data {
     //  seq_num: 4
     //  hop_ID: 4
 
-    public static final int MF_HOP_HEADER_SIZE = 16;
+    public static final int MF_HOP_HEADER_SIZE = 4 * BYTE * 4;
 
     private final int type;
 

@@ -8,9 +8,9 @@ import java.util.Objects;
  *
  * @author Jiachen Chen
  */
-public class NA implements Data {
+public class NA implements Data, Comparable<NA> {
 
-    public static final int NA_SIZE = 4;
+    public static final int NA_SIZE = 4 * BYTE;
 
     private final Node node;
 
@@ -48,4 +48,10 @@ public class NA implements Data {
         final NA other = (NA) obj;
         return Objects.equals(this.node, other.node);
     }   
+
+    @Override
+    public int compareTo(NA o) {
+        return getNode().getName().compareTo(o.getNode().getName());
+    }
+
 }

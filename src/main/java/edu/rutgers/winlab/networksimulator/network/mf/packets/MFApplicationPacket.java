@@ -5,7 +5,7 @@ package edu.rutgers.winlab.networksimulator.network.mf.packets;
  *
  * @author Jiachen Chen
  */
-public abstract class MFPacket extends MFHopPacket {
+public abstract class MFApplicationPacket extends MFHopPacket {
 
     // Routing Header (60)
     //  Version: 1
@@ -19,12 +19,13 @@ public abstract class MFPacket extends MFHopPacket {
     //  Destination GUID: GUID.GUID_SIZE
     //  Destination NA: NA.NA_SIZE
     //  Extension Headers (none)
-    public static final int MF_PACKET_HEADER_SIZE = MF_HOP_HEADER_SIZE + 2 * GUID.GUID_SIZE + 2 * NA.NA_SIZE + 12;
+    public static final int MF_APPLICATION_PACKET_HEADER_SIZE
+            = MF_HOP_HEADER_SIZE + 2 * GUID.GUID_SIZE + 2 * NA.NA_SIZE + 12 * BYTE;
 
     private final GUID src, dst;
     private final NA srcNA, dstNA;
 
-    public MFPacket(int type, GUID src, GUID dst, NA srcNA, NA dstNA) {
+    public MFApplicationPacket(int type, GUID src, GUID dst, NA srcNA, NA dstNA) {
         super(type);
         this.src = src;
         this.dst = dst;

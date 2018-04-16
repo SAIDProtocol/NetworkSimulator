@@ -6,7 +6,7 @@ import edu.rutgers.winlab.networksimulator.common.Data;
  *
  * @author Jiachen Chen
  */
-public final class MFPacketData extends MFPacket {
+public final class MFPacketData extends MFApplicationPacket {
 
     public static final int MF_PACKET_TYPE_DATA = 0x0;
 
@@ -27,6 +27,6 @@ public final class MFPacketData extends MFPacket {
 
     @Override
     public int getSizeInBits() {
-        return MF_PACKET_HEADER_SIZE + payload.getSizeInBits();
+        return MF_APPLICATION_PACKET_HEADER_SIZE + payload.getSizeInBits();
     }
 }

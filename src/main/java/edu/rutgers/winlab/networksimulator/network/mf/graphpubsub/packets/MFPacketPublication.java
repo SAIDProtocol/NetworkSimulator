@@ -2,7 +2,7 @@ package edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets;
 
 import edu.rutgers.winlab.networksimulator.network.mf.packets.NA;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.GUID;
-import edu.rutgers.winlab.networksimulator.network.mf.packets.MFPacket;
+import edu.rutgers.winlab.networksimulator.network.mf.packets.MFApplicationPacket;
 import edu.rutgers.winlab.networksimulator.common.Data;
 
 /**
@@ -18,7 +18,7 @@ import edu.rutgers.winlab.networksimulator.common.Data;
  *
  * @author Jiachen Chen
  */
-public final class MFPacketPublication extends MFPacket {
+public final class MFPacketPublication extends MFApplicationPacket {
 
     private Data payload;
     public static final int MF_PACKET_TYPE_PUBLICATION = 0x100;
@@ -45,6 +45,6 @@ public final class MFPacketPublication extends MFPacket {
 
     @Override
     public int getSizeInBits() {
-        return MF_PACKET_HEADER_SIZE + payload.getSizeInBits();
+        return MF_APPLICATION_PACKET_HEADER_SIZE + payload.getSizeInBits();
     }
 }
