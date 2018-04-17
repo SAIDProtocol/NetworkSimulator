@@ -11,13 +11,11 @@ public abstract class MFHopPacketGNRS extends MFHopPacket {
 
     private final GUID guid;
     private final NA na;
-    private final int serviceId;
 
-    public MFHopPacketGNRS(int type, GUID guid, NA na, int serviceId) {
+    public MFHopPacketGNRS(int type, GUID guid, NA na) {
         super(type);
         this.guid = guid;
         this.na = na;
-        this.serviceId = serviceId;
     }
 
     public GUID getGuid() {
@@ -26,9 +24,5 @@ public abstract class MFHopPacketGNRS extends MFHopPacket {
 
     public NA getNa() {
         return na;
-    }
-
-    public int getServiceId() {
-        return serviceId;
     }
 }

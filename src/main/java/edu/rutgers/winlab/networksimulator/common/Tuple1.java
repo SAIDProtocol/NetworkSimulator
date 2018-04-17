@@ -23,6 +23,10 @@ public class Tuple1<T> {
         this.v1 = v1;
     }
 
+    public void setValues(T v1) {
+        setV1(v1);
+    }
+
     @Override
     public int hashCode() {
         int hash = 7;

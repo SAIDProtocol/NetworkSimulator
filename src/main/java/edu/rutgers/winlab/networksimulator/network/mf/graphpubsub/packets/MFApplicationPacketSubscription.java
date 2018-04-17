@@ -17,16 +17,16 @@ import edu.rutgers.winlab.networksimulator.network.mf.packets.MFApplicationPacke
  * 
  * @author Jiachen Chen
  */
-public final class MFPacketSubscription extends MFApplicationPacket {
+public final class MFApplicationPacketSubscription extends MFApplicationPacket {
 
     public static final int MF_PACKET_TYPE_SUBSCRIPTION = 0x101;
     public static final int SUBSCRPTION_SIZE = MF_APPLICATION_PACKET_HEADER_SIZE;
 
-    public MFPacketSubscription(GUID subscriber, GUID name) {
+    public MFApplicationPacketSubscription(GUID subscriber, GUID name) {
         this(subscriber, name, null);
     }
 
-    public MFPacketSubscription(GUID subscriber, GUID name, NA rpNA) {
+    public MFApplicationPacketSubscription(GUID subscriber, GUID name, NA rpNA) {
         super(MF_PACKET_TYPE_SUBSCRIPTION, subscriber, name, null, rpNA);
     }
 
@@ -42,12 +42,17 @@ public final class MFPacketSubscription extends MFApplicationPacket {
         return getDstNA();
     }
 
-    public MFPacketSubscription fillRPNA(NA newRPNA) {
-        return new MFPacketSubscription(getSubscriber(), getName(), newRPNA);
+    public MFApplicationPacketSubscription fillRPNA(NA newRPNA) {
+        return new MFApplicationPacketSubscription(getSubscriber(), getName(), newRPNA);
     }
 
     @Override
     public int getSizeInBits() {
         return SUBSCRPTION_SIZE;
+    }
+
+    @Override
+    public MFApplicationPacket copyWithNewDstNa(NA newDstNa) {
+        return new MFApplicationPacketSubscription(getSrc(), getDst(), newDstNa);
     }
 }

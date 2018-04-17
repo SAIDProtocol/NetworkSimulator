@@ -56,6 +56,13 @@ public class Tuple4<T1, T2, T3, T4> {
         this.v4 = v4;
     }
 
+    public void setValues(T1 v1, T2 v2, T3 v3, T4 v4) {
+        setV1(v1);
+        setV2(v2);
+        setV3(v3);
+        setV4(v4);
+    }
+
     @Override
     public int hashCode() {
         int hash = 7;

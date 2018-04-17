@@ -15,8 +15,8 @@ public class MFHopPacketGNRSAssociate extends MFHopPacketGNRS {
     private final NA[] nasAdd, nasRemove;
     private final boolean removeExisting;
 
-    public MFHopPacketGNRSAssociate(GUID guid, NA na, int serviceId, NA[] nasAdd, NA[] nasRemove, boolean removeExisting) {
-        super(MF_PACKET_TYPE_GNRS_ASSOCIATE, guid, na, serviceId);
+    public MFHopPacketGNRSAssociate(GUID guid, NA na, NA[] nasAdd, NA[] nasRemove, boolean removeExisting) {
+        super(MF_PACKET_TYPE_GNRS_ASSOCIATE, guid, na);
         this.nasAdd = nasAdd;
         this.nasRemove = nasRemove;
         this.removeExisting = removeExisting;

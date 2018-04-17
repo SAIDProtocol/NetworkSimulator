@@ -34,6 +34,11 @@ public class Tuple2<T1, T2> {
         this.v2 = v2;
     }
 
+    public void setValues(T1 v1, T2 v2) {
+        setV1(v1);
+        setV2(v2);
+    }
+
     @Override
     public int hashCode() {
         int hash = 7;
@@ -61,4 +66,3 @@ public class Tuple2<T1, T2> {
     }
 
 }
-

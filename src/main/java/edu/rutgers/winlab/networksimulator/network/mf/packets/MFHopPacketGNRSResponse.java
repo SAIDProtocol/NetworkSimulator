@@ -15,8 +15,8 @@ public class MFHopPacketGNRSResponse extends MFHopPacketGNRS {
     private final NA nas[];
     private final int version;
 
-    public MFHopPacketGNRSResponse(GUID guid, NA na, int serviceId, NA[] nas, int version) {
-        super(MF_PACKET_TYPE_GNRS_RESPONSE, guid, na, serviceId);
+    public MFHopPacketGNRSResponse(GUID guid, NA na, NA[] nas, int version) {
+        super(MF_PACKET_TYPE_GNRS_RESPONSE, guid, na);
         this.nas = nas;
         this.version = version;
     }

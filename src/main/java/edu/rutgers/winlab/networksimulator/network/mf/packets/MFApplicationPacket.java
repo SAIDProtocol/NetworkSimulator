@@ -49,4 +49,6 @@ public abstract class MFApplicationPacket extends MFHopPacket {
         return dstNA;
     }
 
+    public abstract MFApplicationPacket copyWithNewDstNa(NA newDstNa);
+
 }

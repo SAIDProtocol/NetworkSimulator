@@ -13,21 +13,21 @@ import edu.rutgers.winlab.networksimulator.common.Data;
  * MFPacket.dst -> target group GUID
  *
  * MFPacket.srcNA -> null if from publisher, otherwise from RP.
- * 
+ *
  * MFPacket.dstNA -> RPNA
  *
  * @author Jiachen Chen
  */
-public final class MFPacketPublication extends MFApplicationPacket {
+public final class MFApplicationPacketPublication extends MFApplicationPacket {
 
     private Data payload;
     public static final int MF_PACKET_TYPE_PUBLICATION = 0x100;
 
-    public MFPacketPublication(GUID src, GUID dst, NA rpNA, Data payload) {
+    public MFApplicationPacketPublication(GUID src, GUID dst, NA rpNA, Data payload) {
         super(MF_PACKET_TYPE_PUBLICATION, src, dst, null, rpNA);
     }
 
-    public MFPacketPublication(GUID src, GUID dst, Data payload) {
+    public MFApplicationPacketPublication(GUID src, GUID dst, Data payload) {
         this(src, dst, null, payload);
     }
 
@@ -39,12 +39,17 @@ public final class MFPacketPublication extends MFApplicationPacket {
         return payload;
     }
 
-    public MFPacketPublication fillRPNA(NA rpNA) {
-        return new MFPacketPublication(getSrc(), getDst(), rpNA, payload);
+    public MFApplicationPacketPublication fillRPNA(NA rpNA) {
+        return new MFApplicationPacketPublication(getSrc(), getDst(), rpNA, payload);
     }
 
     @Override
     public int getSizeInBits() {
         return MF_APPLICATION_PACKET_HEADER_SIZE + payload.getSizeInBits();
+    }
+
+    @Override
+    public MFApplicationPacket copyWithNewDstNa(NA newDstNa) {
+        return new MFApplicationPacketPublication(getSrc(), getDst(), newDstNa, payload);
     }
 }

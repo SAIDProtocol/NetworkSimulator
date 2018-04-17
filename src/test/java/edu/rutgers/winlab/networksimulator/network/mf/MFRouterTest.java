@@ -7,7 +7,7 @@ import edu.rutgers.winlab.networksimulator.common.Tuple2;
 import edu.rutgers.winlab.networksimulator.common.UnlimitedQueue;
 import edu.rutgers.winlab.networksimulator.network.Node;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.GUID;
-import edu.rutgers.winlab.networksimulator.network.mf.packets.MFPacketData;
+import edu.rutgers.winlab.networksimulator.network.mf.packets.MFApplicationPacketData;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.NA;
 import java.util.HashMap;
 import java.util.function.BiConsumer;
@@ -40,7 +40,7 @@ public class MFRouterTest {
     public static void tearDownClass() {
     }
 
-    @Test
+    @Test 
     public void test1() {
         LOG.log(Level.INFO, "Routing test");
         HashMap<String, MFRouter> routers = new HashMap<>();
@@ -165,10 +165,10 @@ public class MFRouterTest {
             Timeline.run();
         });
 
-        BiConsumer<Node, MFPacketData> consumer1 = (n, d) -> {
+        BiConsumer<Node, MFApplicationPacketData> consumer1 = (n, d) -> {
             System.out.printf("%s Got: %s%n", n.getName(), d);
         };
-        BiConsumer<Node, MFPacketData> consumer2 = (n, d) -> {
+        BiConsumer<Node, MFApplicationPacketData> consumer2 = (n, d) -> {
             System.out.printf("%s Got 2: %s%n", n.getName(), d);
         };
 
@@ -228,5 +228,28 @@ public class MFRouterTest {
         ret = gnrs.getGuidValue(new GUID(gargetGUID));
         assertStreamEquals(Stream.empty(), ret.getV1().sorted());
         assertEquals(5, (int) ret.getV2());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void test3() {
+        MFRouter r = new MFRouter("Test", new UnlimitedQueue<>());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void test4() {
+        MFRouter r = new MFRouter("Test", new UnlimitedQueue<>(), null);
+    }
+
+    @Test()
+    public void test5() {
+        MFGNRS gnrs = new MFGNRS("GNRS", new UnlimitedQueue<>());
+        MFRouter r = new MFRouter("R1", new UnlimitedQueue<>(), gnrs.getNa());
+        try {
+            MFRouter r2 = new MFRouter("R2", new UnlimitedQueue<>(), r.getNa());
+            fail("Should not reach here");
+        } catch (IllegalArgumentException e) {
+
+        }
+        MFRouter r3 = new MFRouter("R2", new UnlimitedQueue<>(), r.getGnrsNa());
     }
 }
