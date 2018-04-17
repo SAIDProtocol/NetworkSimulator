@@ -142,7 +142,7 @@ public class MFRouter extends Node {
         if (delay == 0) {
             sendData(nextHop.getV1(), data, prioritized);
         } else {
-            Timeline.addEvent(delay, prams -> {
+            Timeline.addEvent(Timeline.nowInUs() + delay, prams -> {
                 sendData((Node) prams[0], (Data) prams[1], (Boolean) prams[2]);
             }, nextHop.getV1(), data, prioritized);
         }
@@ -326,4 +326,11 @@ public class MFRouter extends Node {
         tmp.add(packet);
         return DURATION_HANDLE_DATA_STORE_AND_FORWARD;
     }
+
+    @Override
+    protected void enqueueIncomingData(Node source, Data d) {
+        super.enqueueIncomingData(source, d);
+    }
+    
+    
 }
