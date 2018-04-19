@@ -48,6 +48,10 @@ public class MFGNRS extends MFRouter {
         return new Tuple2<>(ret.getV1().stream(), ret.getV2());
     }
 
+    protected HashMap<GUID, Tuple2<HashSet<NA>, Integer>> getStorage() {
+        return storage;
+    }
+
     @Override
     protected long handleGNRSRequest(Node src, MFHopPacketGNRSRequest packet) {
         GUID guid = packet.getGuid();
@@ -77,12 +81,16 @@ public class MFGNRS extends MFRouter {
             storage.put(guid, tmp = new Tuple2<>(new HashSet<>(), 1));
         }
         HashSet<NA> set = tmp.getV1();
-        if (packet.isRemoveExisting()) {
-            set.clear();
-        }
         set.removeAll(Arrays.asList(packet.getNasRemove()));
         set.addAll(Arrays.asList(packet.getNasAdd()));
         tmp.setV2(tmp.getV2() + 1);
+        if (packet.isBroadcastResult()) {
+            NA[] ret = new NA[tmp.getV1().size()];
+            tmp.getV1().toArray(ret);
+            Timeline.addEvent(Timeline.nowInUs() + ASSOCIATION_PROCESSING_TIME, p -> {
+                forEachLink(l -> sendData(l, (Data) p[0], true));
+            }, new MFHopPacketGNRSResponse(guid, null, ret, tmp.getV2()));
+        }
         return ASSOCIATION_PROCESSING_TIME;
     }
 

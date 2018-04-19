@@ -13,13 +13,13 @@ public class MFHopPacketGNRSAssociate extends MFHopPacketGNRS {
 
     // private final int nasAdd.length, nasRemove.length
     private final NA[] nasAdd, nasRemove;
-    private final boolean removeExisting;
+    private final boolean broadcastResult;
 
-    public MFHopPacketGNRSAssociate(GUID guid, NA na, NA[] nasAdd, NA[] nasRemove, boolean removeExisting) {
+    public MFHopPacketGNRSAssociate(GUID guid, NA na, NA[] nasAdd, NA[] nasRemove, boolean broadcastResult) {
         super(MF_PACKET_TYPE_GNRS_ASSOCIATE, guid, na);
         this.nasAdd = nasAdd;
         this.nasRemove = nasRemove;
-        this.removeExisting = removeExisting;
+        this.broadcastResult = broadcastResult;
     }
 
     public NA[] getNasAdd() {
@@ -30,8 +30,8 @@ public class MFHopPacketGNRSAssociate extends MFHopPacketGNRS {
         return nasRemove;
     }
 
-    public boolean isRemoveExisting() {
-        return removeExisting;
+    public boolean isBroadcastResult() {
+        return broadcastResult;
     }
 
     @Override

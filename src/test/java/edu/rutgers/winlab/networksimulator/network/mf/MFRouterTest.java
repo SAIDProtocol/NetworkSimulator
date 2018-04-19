@@ -11,11 +11,13 @@ import edu.rutgers.winlab.networksimulator.common.UnlimitedQueue;
 import edu.rutgers.winlab.networksimulator.network.Node;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.GUID;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.MFApplicationPacketData;
+import edu.rutgers.winlab.networksimulator.network.mf.packets.MFHopPacket;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.MFHopPacketGNRSAssociate;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.MFHopPacketGNRSRequest;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.NA;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -184,31 +186,31 @@ public class MFRouterTest {
         assertStreamEquals(Stream.empty(), ret.getV1());
         assertEquals(1, (int) ret.getV2());
 
-        routers.get("R1").registerDataConsumer(new GUID(gargetGUID), consumer1);
+        routers.get("R1").registerDataConsumer(new GUID(gargetGUID), false, consumer1);
         Timeline.run();
         ret = gnrs.getGuidValue(new GUID(gargetGUID));
         assertStreamEquals(Stream.of(na1), ret.getV1());
         assertEquals(2, (int) ret.getV2());
 
-        routers.get("R3").registerDataConsumer(new GUID(gargetGUID), consumer1);
+        routers.get("R3").registerDataConsumer(new GUID(gargetGUID), false, consumer1);
         Timeline.run();
         ret = gnrs.getGuidValue(new GUID(gargetGUID));
         assertStreamEquals(Stream.of(na1, na3), ret.getV1().sorted());
         assertEquals(3, (int) ret.getV2());
 
-        routers.get("R3").deregisterDataConsumer(new GUID(gargetGUID), consumer1);
+        routers.get("R3").deregisterDataConsumer(new GUID(gargetGUID), false, consumer1);
         Timeline.run();
         ret = gnrs.getGuidValue(new GUID(gargetGUID));
         assertStreamEquals(Stream.of(na1), ret.getV1().sorted());
         assertEquals(4, (int) ret.getV2());
 
-        routers.get("R1").deregisterDataConsumer(new GUID(gargetGUID), consumer1);
+        routers.get("R1").deregisterDataConsumer(new GUID(gargetGUID), false, consumer1);
         Timeline.run();
         ret = gnrs.getGuidValue(new GUID(gargetGUID));
         assertStreamEquals(Stream.empty(), ret.getV1().sorted());
         assertEquals(5, (int) ret.getV2());
 
-        routers.get("R1").deregisterDataConsumer(new GUID(gargetGUID - 1), consumer1);
+        routers.get("R1").deregisterDataConsumer(new GUID(gargetGUID - 1), false, consumer1);
         Timeline.run();
         ret = gnrs.getGuidValue(new GUID(gargetGUID));
         assertStreamEquals(Stream.empty(), ret.getV1().sorted());
@@ -238,6 +240,16 @@ public class MFRouterTest {
 
         }
         MFRouter r3 = new MFRouter("R2", new UnlimitedQueue<>(), r.getGnrsNa());
+
+        Timeline.addEvent(0, p -> {
+            r3.enqueueIncomingData(r3, new MFHopPacket(-100) {
+                @Override
+                public int getSizeInBits() {
+                    return 0;
+                }
+            });
+        });
+        Timeline.run();
     }
 
     public static class ReportingMFGNRS extends MFGNRS {
@@ -250,13 +262,12 @@ public class MFRouterTest {
         protected long handleGNRSAssociate(Node src, MFHopPacketGNRSAssociate packet) {
             long duration = super.handleGNRSAssociate(src, packet);
             Tuple2<Stream<NA>, Integer> res = super.getGuidValue(packet.getGuid());
-            System.out.printf("[%d] Assoc GUID:%d, NA:%s ADD:%s REM:%s CL:%b, ver:%d, res:%s%n",
+            System.out.printf("[%d] Assoc GUID:%d, NA:%s ADD:%s REM:%s ver:%d, res:%s%n",
                     Timeline.nowInUs(),
                     packet.getGuid().getRepresentation(),
                     packet.getNa().getNode().getName(),
                     Arrays.toString(Stream.of(packet.getNasAdd()).map(na -> na.getNode().getName()).toArray()),
                     Arrays.toString(Stream.of(packet.getNasRemove()).map(na -> na.getNode().getName()).toArray()),
-                    packet.isRemoveExisting(),
                     res.getV2(),
                     Arrays.toString(res.getV1().map(na -> na.getNode().getName()).toArray()));
             return duration;
@@ -273,6 +284,11 @@ public class MFRouterTest {
                     res.getV2(),
                     Arrays.toString(res.getV1().map(na -> na.getNode().getName()).toArray()));
             return duration;
+        }
+
+        public void playWithVersion(GUID guid, int versionAdd) {
+            Tuple2<HashSet<NA>, Integer> entry = getStorage().get(guid);
+            entry.setV2(entry.getV2() + versionAdd);
         }
 
     }
@@ -306,7 +322,19 @@ public class MFRouterTest {
                     d.getSizeInBits() / Data.BYTE);
         };
 
-        Timeline.addEvent(15 * Timeline.SECOND, p -> r2.registerDataConsumer(new GUID(101), dataConsumer));
+        BiConsumer<MFRouter, MFApplicationPacketData> c2 = (r, d) -> {
+        };
+
+        Timeline.addEvent(15 * Timeline.SECOND, p -> r2.registerDataConsumer(new GUID(101), false, dataConsumer));
+        Timeline.addEvent(16 * Timeline.SECOND, p -> {
+            try {
+                r2.registerDataConsumer(new GUID(101), false, c2);
+                fail("Should not reach here");
+            } catch (IllegalArgumentException e) {
+
+            }
+            r2.registerDataConsumer(new GUID(101), false, dataConsumer);
+        });
 
         Timeline.run();
 
@@ -344,8 +372,8 @@ public class MFRouterTest {
                     d.getSizeInBits() / Data.BYTE);
         };
 
-        Timeline.addEvent(15 * Timeline.SECOND, p -> r2.registerDataConsumer(new GUID(101), dataConsumer));
-        Timeline.addEvent(15 * Timeline.SECOND, p -> r3.registerDataConsumer(new GUID(101), dataConsumer));
+        Timeline.addEvent(15 * Timeline.SECOND, p -> r2.registerDataConsumer(new GUID(101), false, dataConsumer));
+        Timeline.addEvent(15 * Timeline.SECOND, p -> r3.registerDataConsumer(new GUID(101), false, dataConsumer));
 
         Timeline.run();
 
@@ -383,11 +411,271 @@ public class MFRouterTest {
                     d.getSizeInBits() / Data.BYTE);
         };
 
-        Timeline.addEvent(15 * Timeline.SECOND, p -> r2.registerDataConsumer(new GUID(101), dataConsumer));
-        Timeline.addEvent(16113 * Timeline.MS, p -> r2.deregisterDataConsumer(new GUID(101), dataConsumer));
-        Timeline.addEvent(20 * Timeline.SECOND, p -> r3.registerDataConsumer(new GUID(101), dataConsumer));
+        Timeline.addEvent(15 * Timeline.SECOND, p -> r2.registerDataConsumer(new GUID(101), false, dataConsumer));
+        Timeline.addEvent(16113 * Timeline.MS, p -> r2.deregisterDataConsumer(new GUID(101), false, dataConsumer));
+        Timeline.addEvent(20 * Timeline.SECOND, p -> r3.registerDataConsumer(new GUID(101), false, dataConsumer));
         Timeline.run();
 
         //TODO add verify
+    }
+
+    @Test
+    public void test9() {
+        LOG.log(Level.INFO, "Version Error");
+
+        ReportingMFGNRS gnrs = new ReportingMFGNRS("GNRS", new UnlimitedQueue<>());
+        MFRouter r1 = new MFRouter("R1", new UnlimitedQueue<>(), gnrs.getNa());
+        MFRouter r2 = new MFRouter("R2", new UnlimitedQueue<>(), gnrs.getNa());
+        MFRouter r3 = new MFRouter("R3", new UnlimitedQueue<>(), gnrs.getNa());
+
+        MFRouter[] nodes = new MFRouter[]{gnrs, r1, r2, r3};
+
+        Node.linkNodes(r1, gnrs, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Node.linkNodes(r2, gnrs, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Node.linkNodes(r3, gnrs, 100 * Node.BW_IN_MBPS, 50 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+
+        for (MFRouter node : nodes) {
+            Timeline.addEvent(0, p -> ((MFRouter) p[0]).announceNA(), node);
+            Timeline.run();
+        }
+
+        Timeline.addEvent(0, p -> r1.enqueueIncomingData(r1, new MFApplicationPacketData(new GUID(100), new GUID(101), new RandomData(1000 * Data.BYTE))));
+
+        BiConsumer<MFRouter, MFApplicationPacketData> dataConsumer = (r, d) -> {
+            System.out.printf("[%d] %s received G:%d->G:%d, len=%d%n",
+                    Timeline.nowInUs(),
+                    r.getName(),
+                    d.getSrc().getRepresentation(),
+                    d.getDst().getRepresentation(),
+                    d.getSizeInBits() / Data.BYTE);
+        };
+        Timeline.addEvent(9 * Timeline.SECOND, p -> gnrs.playWithVersion(new GUID(101), -2));
+        Timeline.addEvent(15 * Timeline.SECOND, p -> r2.registerDataConsumer(new GUID(101), false, dataConsumer));
+        Timeline.addEvent(20 * Timeline.SECOND, p -> r3.registerDataConsumer(new GUID(101), false, dataConsumer));
+        Timeline.run();
+
+        //TODO add verify
+    }
+
+    @Test
+    public void test10() {
+        LOG.log(Level.INFO, "Duplicate requests");
+
+        ReportingMFGNRS gnrs = new ReportingMFGNRS("GNRS", new UnlimitedQueue<>());
+        MFRouter r1 = new MFRouter("R1", new UnlimitedQueue<>(), gnrs.getNa());
+        MFRouter r2 = new MFRouter("R2", new UnlimitedQueue<>(), gnrs.getNa());
+        MFRouter r3 = new MFRouter("R3", new UnlimitedQueue<>(), gnrs.getNa());
+
+        MFRouter[] nodes = new MFRouter[]{gnrs, r1, r2, r3};
+
+        Node.linkNodes(r1, gnrs, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Node.linkNodes(r2, gnrs, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Node.linkNodes(r3, r1, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+
+        for (MFRouter node : nodes) {
+            Timeline.addEvent(0, p -> ((MFRouter) p[0]).announceNA(), node);
+            Timeline.run();
+        }
+
+        Timeline.addEvent(0, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(99), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(1 * Timeline.SECOND, p -> r1.enqueueIncomingData(r1, new MFApplicationPacketData(new GUID(100), new GUID(101), new RandomData(1000 * Data.BYTE))));
+
+        BiConsumer<MFRouter, MFApplicationPacketData> dataConsumer = (r, d) -> {
+            System.out.printf("[%d] %s received G:%d->G:%d, len=%d%n",
+                    Timeline.nowInUs(),
+                    r.getName(),
+                    d.getSrc().getRepresentation(),
+                    d.getDst().getRepresentation(),
+                    d.getSizeInBits() / Data.BYTE);
+        };
+        Timeline.addEvent(10 * Timeline.SECOND, p -> r2.registerDataConsumer(new GUID(101), false, dataConsumer));
+        Timeline.run();
+
+        //TODO add verify
+    }
+
+    @Test
+    public void test11() {
+        LOG.log(Level.INFO, "Duplicate requests 2");
+
+        ReportingMFGNRS gnrs = new ReportingMFGNRS("GNRS", new UnlimitedQueue<>());
+        MFRouter r1 = new MFRouter("R1", new UnlimitedQueue<>(), gnrs.getNa());
+        MFRouter r2 = new MFRouter("R2", new UnlimitedQueue<>(), gnrs.getNa());
+        MFRouter r3 = new MFRouter("R3", new UnlimitedQueue<>(), gnrs.getNa());
+
+        MFRouter[] nodes = new MFRouter[]{gnrs, r1, r2, r3};
+
+        Node.linkNodes(r1, gnrs, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Node.linkNodes(r2, gnrs, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Node.linkNodes(r3, r1, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+
+        for (MFRouter node : nodes) {
+            Timeline.addEvent(0, p -> ((MFRouter) p[0]).announceNA(), node);
+            Timeline.run();
+        }
+
+        Timeline.addEvent(0, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(98), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(1 * Timeline.SECOND, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(99), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(1 * Timeline.SECOND, p -> r1.enqueueIncomingData(r1, new MFApplicationPacketData(new GUID(100), new GUID(101), new RandomData(1000 * Data.BYTE))));
+
+        Timeline.addEvent(15 * Timeline.SECOND, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(98), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(15 * Timeline.SECOND + 110 * Timeline.MS, p -> r1.enqueueIncomingData(r1, new MFApplicationPacketData(new GUID(100), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(15 * Timeline.SECOND + 110 * Timeline.MS, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(98), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(15 * Timeline.SECOND + 210 * Timeline.MS, p -> r1.enqueueIncomingData(r1, new MFApplicationPacketData(new GUID(100), new GUID(101), new RandomData(1000 * Data.BYTE))));
+
+        Timeline.addEvent(23 * Timeline.SECOND, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(98), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(23 * Timeline.SECOND + 110 * Timeline.MS, p -> r1.enqueueIncomingData(r1, new MFApplicationPacketData(new GUID(100), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(23 * Timeline.SECOND + 110 * Timeline.MS, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(98), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(23 * Timeline.SECOND + 210 * Timeline.MS, p -> r1.enqueueIncomingData(r1, new MFApplicationPacketData(new GUID(100), new GUID(101), new RandomData(1000 * Data.BYTE))));
+
+        Timeline.addEvent(30 * Timeline.SECOND, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(98), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(30 * Timeline.SECOND + 210 * Timeline.MS, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(98), new GUID(101), new RandomData(1000 * Data.BYTE))));
+
+        Timeline.addEvent(50 * Timeline.SECOND, p -> gnrs.playWithVersion(new GUID(101), -1));
+        Timeline.addEvent(50 * Timeline.SECOND, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(98), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(55 * Timeline.SECOND, p -> gnrs.playWithVersion(new GUID(101), 1));
+
+        BiConsumer<MFRouter, MFApplicationPacketData> dataConsumer = (r, d) -> {
+            System.out.printf("[%d] %s received G:%d->G:%d, len=%d%n",
+                    Timeline.nowInUs(),
+                    r.getName(),
+                    d.getSrc().getRepresentation(),
+                    d.getDst().getRepresentation(),
+                    d.getSizeInBits() / Data.BYTE);
+        };
+        Timeline.addEvent(11 * Timeline.SECOND, p -> r2.registerDataConsumer(new GUID(101), false, dataConsumer));
+        Timeline.run();
+
+        //TODO add verify
+    }
+
+    @Test
+    public void test12() {
+        LOG.log(Level.INFO, "Request without data");
+
+        ReportingMFGNRS gnrs = new ReportingMFGNRS("GNRS", new UnlimitedQueue<>());
+        MFRouter r1 = new MFRouter("R1", new UnlimitedQueue<>(), gnrs.getNa());
+        MFRouter r2 = new MFRouter("R2", new UnlimitedQueue<>(), gnrs.getNa());
+        MFRouter r3 = new MFRouter("R3", new UnlimitedQueue<>(), gnrs.getNa());
+
+        MFRouter[] nodes = new MFRouter[]{gnrs, r1, r2, r3};
+
+        Node.linkNodes(r1, gnrs, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Node.linkNodes(r2, gnrs, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Node.linkNodes(r3, r1, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+
+        for (MFRouter node : nodes) {
+            Timeline.addEvent(0, p -> ((MFRouter) p[0]).announceNA(), node);
+            Timeline.run();
+        }
+        Timeline.addEvent(0, p -> r3.sendData(r3.getGnrsNa(), new MFHopPacketGNRSRequest(new GUID(101), r3.getNa()), true, 0));
+        Timeline.run();
+
+        //TODO add verify
+    }
+
+    @Test
+    public void test13() {
+        LOG.log(Level.INFO, "Broadcast associate");
+
+        ReportingMFGNRS gnrs = new ReportingMFGNRS("GNRS", new UnlimitedQueue<>());
+        MFRouter r1 = new MFRouter("R1", new UnlimitedQueue<>(), gnrs.getNa());
+        MFRouter r2 = new MFRouter("R2", new UnlimitedQueue<>(), gnrs.getNa());
+        MFRouter r3 = new MFRouter("R3", new UnlimitedQueue<>(), gnrs.getNa());
+
+        MFRouter[] nodes = new MFRouter[]{gnrs, r1, r2, r3};
+
+        Node.linkNodes(r1, gnrs, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Node.linkNodes(r2, gnrs, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+        Node.linkNodes(r3, r1, 100 * Node.BW_IN_MBPS, 100 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+
+        for (MFRouter node : nodes) {
+            Timeline.addEvent(0, p -> ((MFRouter) p[0]).announceNA(), node);
+            Timeline.run();
+        }
+
+        for (MFRouter node : nodes) {
+            node.forEachFib((na, tup) -> {
+                System.out.printf("%s->%s %s %d%n", node.getName(), na.getNode().getName(), tup.getV1().getName(), tup.getV2());
+            });
+        }
+
+        Timeline.addEvent(0, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(98), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(1 * Timeline.SECOND, p -> r3.enqueueIncomingData(r3, new MFApplicationPacketData(new GUID(99), new GUID(101), new RandomData(1000 * Data.BYTE))));
+        Timeline.addEvent(1 * Timeline.SECOND, p -> r1.enqueueIncomingData(r1, new MFApplicationPacketData(new GUID(100), new GUID(101), new RandomData(1000 * Data.BYTE))));
+
+        BiConsumer<MFRouter, MFApplicationPacketData> dataConsumer = (r, d) -> {
+            System.out.printf("[%d] %s received G:%d->G:%d, len=%d%n",
+                    Timeline.nowInUs(),
+                    r.getName(),
+                    d.getSrc().getRepresentation(),
+                    d.getDst().getRepresentation(),
+                    d.getSizeInBits() / Data.BYTE);
+        };
+        Timeline.addEvent(11 * Timeline.SECOND, p -> r2.registerDataConsumer(new GUID(101), true, dataConsumer));
+
+        Timeline.addEvent(12 * Timeline.SECOND, p -> {
+            r1.forEachNrsCache((guid, tup) -> {
+                System.out.printf("GUID:%d NAs:%s, Version:%d, Expire:%d%n",
+                        guid.getRepresentation(),
+                        Arrays.toString(Stream.of(tup.getV1()).map(na -> na.getNode().getName()).toArray()),
+                        tup.getV2(),
+                        tup.getV3());
+            });
+            r1.activeNrsCacheStream().forEach(e -> {
+                System.out.printf("GUID:%d NAs:%s, Version:%d, Expire:%d%n",
+                        e.getKey().getRepresentation(),
+                        Arrays.toString(Stream.of(e.getValue().getV1()).map(na -> na.getNode().getName()).toArray()),
+                        e.getValue().getV2(),
+                        e.getValue().getV3());
+            });
+            r1.nrsCacheStream().forEach(e -> {
+                System.out.printf("GUID:%d NAs:%s, Version:%d, Expire:%d%n",
+                        e.getKey().getRepresentation(),
+                        Arrays.toString(Stream.of(e.getValue().getV1()).map(na -> na.getNode().getName()).toArray()),
+                        e.getValue().getV2(),
+                        e.getValue().getV3());
+            });
+        });
+        Timeline.addEvent(18 * Timeline.SECOND, p -> {
+            r1.forEachNrsCache((guid, tup) -> {
+                System.out.printf(">> GUID:%d NAs:%s, Version:%d, Expire:%d%n",
+                        guid.getRepresentation(),
+                        Arrays.toString(Stream.of(tup.getV1()).map(na -> na.getNode().getName()).toArray()),
+                        tup.getV2(),
+                        tup.getV3());
+            });
+            r1.activeNrsCacheStream().forEach(e -> {
+                System.out.printf(">> GUID:%d NAs:%s, Version:%d, Expire:%d%n",
+                        e.getKey().getRepresentation(),
+                        Arrays.toString(Stream.of(e.getValue().getV1()).map(na -> na.getNode().getName()).toArray()),
+                        e.getValue().getV2(),
+                        e.getValue().getV3());
+            });
+            r1.nrsCacheStream().forEach(e -> {
+                System.out.printf(">> GUID:%d NAs:%s, Version:%d, Expire:%d%n",
+                        e.getKey().getRepresentation(),
+                        Arrays.toString(Stream.of(e.getValue().getV1()).map(na -> na.getNode().getName()).toArray()),
+                        e.getValue().getV2(),
+                        e.getValue().getV3());
+            });
+        });
+
+        Timeline.addEvent(18 * Timeline.SECOND, p -> {
+            gnrs.forEachStorage((guid, tup) -> {
+                System.out.printf("--GNRS-- GUID:%d NAs:%s, Version:%d%n",
+                        guid.getRepresentation(),
+                        Arrays.toString(tup.getV1().map(na -> na.getNode().getName()).toArray()),
+                        tup.getV2());
+            });
+            gnrs.getStorageStream().forEach(e -> {
+                System.out.printf("--GNRS-- GUID:%d NAs:%s, Version:%d%n",
+                        e.getKey().getRepresentation(),
+                        Arrays.toString(e.getValue().getV1().map(na -> na.getNode().getName()).toArray()),
+                        e.getValue().getV2());
+            });
+        });
+        Timeline.run();
+
     }
 }

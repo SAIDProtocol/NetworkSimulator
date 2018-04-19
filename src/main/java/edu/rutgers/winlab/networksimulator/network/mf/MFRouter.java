@@ -32,24 +32,9 @@ public class MFRouter extends Node {
     public static final long DURATION_HANDLE_GNRS_RESPONSE = 1 * Timeline.MS;
     public static final long DURATION_HANDLE_DATA_FORWARD_TO_APPLICATION = 100 * Timeline.US;
     public static final long DURATION_HANDLE_DATA_STORE_AND_FORWARD = 1 * Timeline.MS;
-    private static long durationNrsCacheExpire = 5 * Timeline.SECOND;
-    private static long durationNrsReIssue = 3 * Timeline.SECOND;
-
-    public static long getDurationNrsCacheExpire() {
-        return durationNrsCacheExpire;
-    }
-
-    public static void setDurationNrsCacheExpire(long durationNrsCacheExpire) {
-        MFRouter.durationNrsCacheExpire = durationNrsCacheExpire;
-    }
-
-    public static long getDurationNrsReIssue() {
-        return durationNrsReIssue;
-    }
-
-    public static void setDurationNrsReIssue(long durationNrsReIssue) {
-        MFRouter.durationNrsReIssue = durationNrsReIssue;
-    }
+    public static final long DURATION_HANDLE_OTHER = 50 * Timeline.US;
+    public static long durationNrsCacheExpire = 5 * Timeline.SECOND;
+    public static long durationNrsReIssue = 3 * Timeline.SECOND;
 
     private final NA na;
     private final NA gnrsNa;
@@ -109,19 +94,22 @@ public class MFRouter extends Node {
         nrsCache.forEach(consumer);
     }
 
-    public final void registerDataConsumer(GUID guid, BiConsumer<? super MFRouter, ? super MFApplicationPacketData> consumer) {
+    public final void registerDataConsumer(GUID guid, boolean requestBroadcast, BiConsumer<? super MFRouter, ? super MFApplicationPacketData> consumer) {
         BiConsumer<? super MFRouter, ? super MFApplicationPacketData> orig = dataConsumers.putIfAbsent(guid, consumer);
         if (orig != null) {
+            if (orig == consumer) {
+                return;
+            }
             throw new IllegalArgumentException("Cannot add 2 consumers to a same data guid");
         }
         //associate
-        MFHopPacketGNRSAssociate assoc = new MFHopPacketGNRSAssociate(guid, na, new NA[]{na}, new NA[0], false);
+        MFHopPacketGNRSAssociate assoc = new MFHopPacketGNRSAssociate(guid, na, new NA[]{na}, new NA[0], requestBroadcast);
         enqueueIncomingData(this, assoc);
     }
 
-    public final void deregisterDataConsumer(GUID guid, BiConsumer<? super MFRouter, ? super MFApplicationPacketData> consumer) {
+    public final void deregisterDataConsumer(GUID guid, boolean requestBroadcast, BiConsumer<? super MFRouter, ? super MFApplicationPacketData> consumer) {
         if (dataConsumers.remove(guid, consumer)) {
-            MFHopPacketGNRSAssociate assoc = new MFHopPacketGNRSAssociate(guid, na, new NA[0], new NA[]{na}, false);
+            MFHopPacketGNRSAssociate assoc = new MFHopPacketGNRSAssociate(guid, na, new NA[0], new NA[]{na}, requestBroadcast);
             enqueueIncomingData(this, assoc);
         }
     }
@@ -164,21 +152,14 @@ public class MFRouter extends Node {
             case MFApplicationPacketData.MF_PACKET_TYPE_DATA:
                 return handleMFData(source, (MFApplicationPacketData) p);
         }
-        return 0;
+        return DURATION_HANDLE_OTHER;
     }
 
     private boolean updateNRSCacheIfActiveOrPending(GUID guid, NA[] nas, int version) {
         Long now = Timeline.nowInUs();
         Tuple3<NA[], Integer, Long> tuple = nrsCache.get(guid);
-        if (tuple == null) { // I don't have it, check if there is any pending content
-            if (nrsPending.containsKey(guid)) { // I do have pending
-                nrsCache.put(guid, new Tuple3<>(nas, version, now + durationNrsCacheExpire));
-                return true;
-            }
-            // I don't have pending, don't update
-            return false;
-        }
-        if (version >= tuple.getV2() // I have it and its version is OK
+        if (tuple != null // I should have the entry, otherwise, I'll not have the pending
+                && version >= tuple.getV2() // I have it and its version is OK
                 && (tuple.getV3() >= now || nrsPending.containsKey(guid))) { // And, it is active or I have pending
             tuple.setValues(nas, version, now + durationNrsCacheExpire);
             return true;
@@ -208,7 +189,7 @@ public class MFRouter extends Node {
         }
         HashSet<MFApplicationPacket> packets = nrsPending.remove(guid);
         // no pending, do nothing
-        if (packets == null || packets.isEmpty()) {
+        if (packets == null) {
             return;
         }
         NA dataDst;
@@ -234,13 +215,19 @@ public class MFRouter extends Node {
         int version = packet.getVersion();
 
         if (dst == null) {
+            // If I have already got the packet before, discard
+            if (!packet.addNode(this)) {
+                return 0;
+            }
             // update if active or pending
             if (updateNRSCacheIfActiveOrPending(guid, nas, version)) {
                 ret += DURATION_HANDLE_GNRS_RESPONSE;
                 triggerSendApplicationPacket(guid, nas);
             }
-            // TODO: flood the announcement to other nodes. but how??
-            //
+            // flood the announcement to other nodes. but how??
+            Timeline.addEvent(Timeline.nowInUs() + DURATION_HANDLE_NA_FORWARDING, p -> {
+                forEachLink(l -> Node.sendData(l, (Data) p[0], true));
+            }, packet);
         } else {
             if (dst != getNa()) {
                 // update if active or pending
@@ -331,6 +318,5 @@ public class MFRouter extends Node {
     protected void enqueueIncomingData(Node source, Data d) {
         super.enqueueIncomingData(source, d);
     }
-    
-    
+
 }

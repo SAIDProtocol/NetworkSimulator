@@ -1,5 +1,7 @@
 package edu.rutgers.winlab.networksimulator.network.mf.packets;
 
+import edu.rutgers.winlab.networksimulator.network.Node;
+
 /**
  *
  * @author Jiachen Chen
@@ -14,6 +16,7 @@ public class MFHopPacketGNRSResponse extends MFHopPacketGNRS {
     // private final int nas.length;
     private final NA nas[];
     private final int version;
+    private final BroadcastComponent broadcast = new BroadcastComponent();
 
     public MFHopPacketGNRSResponse(GUID guid, NA na, NA[] nas, int version) {
         super(MF_PACKET_TYPE_GNRS_RESPONSE, guid, na);
@@ -34,4 +37,8 @@ public class MFHopPacketGNRSResponse extends MFHopPacketGNRS {
         return MF_HOP_PACKET_GNRS_RESPONSE_SIZE_BASE + nas.length * NA.NA_SIZE;
     }
 
+    public boolean addNode(Node n) {
+        return broadcast.addNode(n);
+    }
+    
 }
