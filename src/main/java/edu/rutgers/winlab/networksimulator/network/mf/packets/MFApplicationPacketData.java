@@ -25,6 +25,10 @@ public final class MFApplicationPacketData extends MFApplicationPacket {
         return new MFApplicationPacketData(getSrc(), getDst(), srcNA, dstNA, payload);
     }
 
+    public Data getPayload() {
+        return payload;
+    }
+
     @Override
     public int getSizeInBits() {
         return MF_APPLICATION_PACKET_HEADER_SIZE + payload.getSizeInBits();

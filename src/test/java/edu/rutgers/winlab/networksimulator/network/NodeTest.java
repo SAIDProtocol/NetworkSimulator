@@ -15,7 +15,7 @@ import edu.rutgers.winlab.networksimulator.common.Tuple1;
 import edu.rutgers.winlab.networksimulator.common.Tuple2;
 import edu.rutgers.winlab.networksimulator.common.Tuple4;
 import edu.rutgers.winlab.networksimulator.common.UnlimitedQueue;
-import edu.rutgers.winlab.networksimulator.network.Node.Link;
+import edu.rutgers.winlab.networksimulator.network.Node.UnicastLink;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.function.Consumer;
@@ -202,7 +202,7 @@ public class NodeTest {
         TestNode n2 = new TestNode("N2", new UnlimitedQueue<>(), 2000, result);
         TestNode n3 = new TestNode("N3", new UnlimitedQueue<>(), 2000, result);
         Node.linkNodes(n1, n2, 1 * Node.BW_IN_MBPS, 1 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
-        Tuple2<Link, Link> ret = Node.disconnectNodes(n1, n3);
+        Tuple2<UnicastLink, UnicastLink> ret = Node.disconnectNodes(n1, n3);
         assertEquals(new Tuple2<>(null, null), ret);
 
         // pkt 2 is killed on the way, pkt 3 is killed when sending, pkt 4 is killed in the queue.
@@ -214,19 +214,20 @@ public class NodeTest {
             n2.sendData(n1, new MyData(1000), false); // pkt 5
             n2.sendData(n1, new MyData(1000), false); // pkt 6
         });
-        Consumer<Link> linkIdleHandler = l -> {
+        Consumer<Node.AbstractLink> linkIdleHandler = l -> {
+            UnicastLink ul = (UnicastLink)l;
             assertEquals(4000L, Timeline.nowInUs());
             if (l.getSource() == n1) {
-                assertEquals(l.getDestination(), n2);
+                assertEquals(ul.getDestination(), n2);
                 assertEquals(1000, l.getBitsSent());
                 assertEquals(3000, l.getBitsDiscarded());
             } else {
                 fail("Should not reach here!");
             }
         };
-        Tuple1<Link> tmpStorage = new Tuple1<>(null);
+        Tuple1<UnicastLink> tmpStorage = new Tuple1<>(null);
         Timeline.addEvent(2500, ps -> {
-            Tuple2<Link, Link> t = Node.disconnectNodes(n1, n2);
+            Tuple2<UnicastLink, UnicastLink> t = Node.disconnectNodes(n1, n2);
             t.getV1().addIdleHandler(linkIdleHandler);
             t.getV2().addIdleHandler(linkIdleHandler);
             tmpStorage.setV1(t.getV2());

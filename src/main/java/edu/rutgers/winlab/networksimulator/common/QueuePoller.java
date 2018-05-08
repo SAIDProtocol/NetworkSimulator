@@ -1,6 +1,5 @@
 package edu.rutgers.winlab.networksimulator.common;
 
-import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -30,7 +29,7 @@ public class QueuePoller<T> {
             runQueue();
         }
     }
-    
+
     public void enQueue(T val, boolean prioritized, Consumer<T> consumer) {
         queue.enQueue(val, prioritized, consumer);
         if (!busy) {
@@ -58,7 +57,7 @@ public class QueuePoller<T> {
     public void clear() {
         queue.clear();
     }
-    
+
     public void clear(Consumer<T> consumer) {
         queue.clear(consumer);
     }
@@ -70,6 +69,5 @@ public class QueuePoller<T> {
     public Stream<T> stream() {
         return queue.stream();
     }
-
 
 }

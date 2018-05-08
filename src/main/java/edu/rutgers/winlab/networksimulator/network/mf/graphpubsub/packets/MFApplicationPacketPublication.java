@@ -4,6 +4,8 @@ import edu.rutgers.winlab.networksimulator.network.mf.packets.NA;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.GUID;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.MFApplicationPacket;
 import edu.rutgers.winlab.networksimulator.common.Data;
+import edu.rutgers.winlab.networksimulator.network.Node;
+import edu.rutgers.winlab.networksimulator.network.mf.packets.BroadcastComponent;
 
 /**
  * A publication packet.
@@ -20,27 +22,30 @@ import edu.rutgers.winlab.networksimulator.common.Data;
  */
 public final class MFApplicationPacketPublication extends MFApplicationPacket {
 
-    private Data payload;
     public static final int MF_PACKET_TYPE_PUBLICATION = 0x100;
 
+    private Data payload;
+    private BroadcastComponent broadcast = new BroadcastComponent();
+
     public MFApplicationPacketPublication(GUID src, GUID dst, NA rpNA, Data payload) {
-        super(MF_PACKET_TYPE_PUBLICATION, src, dst, null, rpNA);
+        this(src, dst, null, rpNA, payload);
     }
 
     public MFApplicationPacketPublication(GUID src, GUID dst, Data payload) {
         this(src, dst, null, payload);
     }
 
-    public NA getRpNA() {
-        return getDstNA();
+    private MFApplicationPacketPublication(GUID src, GUID dst, NA srcNA, NA dstNA, Data payload) {
+        super(MF_PACKET_TYPE_PUBLICATION, src, dst, srcNA, dstNA);
+        this.payload = payload;
     }
 
     public Data getPayload() {
         return payload;
     }
 
-    public MFApplicationPacketPublication fillRPNA(NA rpNA) {
-        return new MFApplicationPacketPublication(getSrc(), getDst(), rpNA, payload);
+    public boolean addNode(Node n) {
+        return broadcast.addNode(n);
     }
 
     @Override
@@ -48,8 +53,23 @@ public final class MFApplicationPacketPublication extends MFApplicationPacket {
         return MF_APPLICATION_PACKET_HEADER_SIZE + payload.getSizeInBits();
     }
 
+    public MFApplicationPacketPublication copyWithNewSrcNa(NA newSrcNa) {
+        return new MFApplicationPacketPublication(getSrc(), getDst(), newSrcNa, getDstNA(), payload);
+    }
+
     @Override
     public MFApplicationPacket copyWithNewDstNa(NA newDstNa) {
         return new MFApplicationPacketPublication(getSrc(), getDst(), newDstNa, payload);
+    }
+
+    /**
+     * Used when RP copying a publication packet to another group, and forward
+     *
+     * @param newDst the new group GUID
+     * @param newSrcNa the RP's na
+     * @return the new packet
+     */
+    public MFApplicationPacketPublication copyWithNewDstGUIDAndSrcNa(GUID newDst, NA newSrcNa) {
+        return new MFApplicationPacketPublication(getSrc(), newDst, newSrcNa, getDstNA(), payload);
     }
 }

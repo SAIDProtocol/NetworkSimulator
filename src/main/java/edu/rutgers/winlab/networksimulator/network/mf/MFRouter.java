@@ -32,6 +32,7 @@ public class MFRouter extends Node {
     public static final long DURATION_HANDLE_GNRS_RESPONSE = 1 * Timeline.MS;
     public static final long DURATION_HANDLE_DATA_FORWARD_TO_APPLICATION = 100 * Timeline.US;
     public static final long DURATION_HANDLE_DATA_STORE_AND_FORWARD = 1 * Timeline.MS;
+    public static final long DURATION_HANDLE_DATA_ADD_NA_AND_FORWARD = 300 * Timeline.US;
     public static final long DURATION_HANDLE_OTHER = 50 * Timeline.US;
     public static long durationNrsCacheExpire = 5 * Timeline.SECOND;
     public static long durationNrsReIssue = 3 * Timeline.SECOND;
@@ -39,9 +40,9 @@ public class MFRouter extends Node {
     private final NA na;
     private final NA gnrsNa;
     private final HashMap<NA, Tuple2<Node, Long>> fib = new HashMap<>();
-    private final HashMap<GUID, BiConsumer<? super MFRouter, ? super MFApplicationPacketData>> dataConsumers = new HashMap<>();
+    private final HashMap<GUID, BiConsumer<? super MFRouter, ? super MFApplicationPacket>> dataConsumers = new HashMap<>();
     private final HashMap<GUID, Tuple3<NA[], Integer, Long>> nrsCache = new HashMap<>();
-    private final HashMap<GUID, HashSet<MFApplicationPacket>> nrsPending = new HashMap<>();
+    private final HashMap<GUID, HashSet<Tuple2<MFApplicationPacket, Node>>> nrsPending = new HashMap<>();
 
     public MFRouter(String name, PrioritizedQueue<Tuple2<Node, Data>> incomingQueue, NA gnrsNa) {
         super(name, incomingQueue);
@@ -94,8 +95,8 @@ public class MFRouter extends Node {
         nrsCache.forEach(consumer);
     }
 
-    public final void registerDataConsumer(GUID guid, boolean requestBroadcast, BiConsumer<? super MFRouter, ? super MFApplicationPacketData> consumer) {
-        BiConsumer<? super MFRouter, ? super MFApplicationPacketData> orig = dataConsumers.putIfAbsent(guid, consumer);
+    public final void registerDataConsumer(GUID guid, boolean requestBroadcast, BiConsumer<? super MFRouter, ? super MFApplicationPacket> consumer) {
+        BiConsumer<? super MFRouter, ? super MFApplicationPacket> orig = dataConsumers.putIfAbsent(guid, consumer);
         if (orig != null) {
             if (orig == consumer) {
                 return;
@@ -104,13 +105,13 @@ public class MFRouter extends Node {
         }
         //associate
         MFHopPacketGNRSAssociate assoc = new MFHopPacketGNRSAssociate(guid, na, new NA[]{na}, new NA[0], requestBroadcast);
-        enqueueIncomingData(this, assoc);
+        enqueueIncomingData(this, assoc, true);
     }
 
-    public final void deregisterDataConsumer(GUID guid, boolean requestBroadcast, BiConsumer<? super MFRouter, ? super MFApplicationPacketData> consumer) {
+    public final void deregisterDataConsumer(GUID guid, boolean requestBroadcast, BiConsumer<? super MFRouter, ? super MFApplicationPacket> consumer) {
         if (dataConsumers.remove(guid, consumer)) {
             MFHopPacketGNRSAssociate assoc = new MFHopPacketGNRSAssociate(guid, na, new NA[0], new NA[]{na}, requestBroadcast);
-            enqueueIncomingData(this, assoc);
+            enqueueIncomingData(this, assoc, true);
         }
     }
 
@@ -120,9 +121,13 @@ public class MFRouter extends Node {
         forEachLink(l -> sendData(l, announce, true));
     }
 
+    protected Tuple2<Node, Long> getFibEntry(NA na) {
+        return fib.get(na);
+    }
+
     protected void sendData(NA target, Data data, boolean prioritized, long delay) {
         if (target == this.na) {
-            enqueueIncomingData(this, data);
+            enqueueIncomingData(this, data, false);
             return;
         }
         Tuple2<Node, Long> nextHop = fib.get(target);
@@ -182,12 +187,22 @@ public class MFRouter extends Node {
         return false;
     }
 
+    protected void setLocalNRSCache(GUID guid, NA[] nas) {
+        Long now = Timeline.nowInUs();
+        Tuple3<NA[], Integer, Long> tuple = nrsCache.get(guid);
+        if (tuple == null) { // I don't have it, add
+            nrsCache.put(guid, new Tuple3<>(nas, 0, now + durationNrsCacheExpire));
+        } else {
+            tuple.setValues(nas, tuple.getV2(), now + durationNrsCacheExpire);
+        }
+    }
+
     protected void triggerSendApplicationPacket(GUID guid, NA[] nas) {
         if (nas.length == 0) { // no destination bound
             // Here, we don't reassociate, let the caller decide what to do
             return;
         }
-        HashSet<MFApplicationPacket> packets = nrsPending.remove(guid);
+        HashSet<Tuple2<MFApplicationPacket, Node>> packets = nrsPending.remove(guid);
         // no pending, do nothing
         if (packets == null) {
             return;
@@ -202,9 +217,9 @@ public class MFRouter extends Node {
                     .map(t -> t.getV1()) // map it back to na
                     .get();
         }
-        packets.stream()
-                .map(p -> p.copyWithNewDstNa(dataDst)) // update the dstNA of the data packets
-                .forEach(p -> enqueueIncomingData(this, p)); // add to incoming queue
+        packets.forEach((packet) -> {
+            enqueueIncomingData(packet.getV2(), packet.getV1().copyWithNewDstNa(dataDst), false);
+        });
     }
 
     protected long handleGNRSResponse(Node src, MFHopPacketGNRSResponse packet) {
@@ -289,34 +304,62 @@ public class MFRouter extends Node {
         return DURATION_HANDLE_LSA;
     }
 
-    protected long handleMFData(Node src, MFApplicationPacketData packet) {
-        if (packet.getDstNA() == this.getNa()) {
-            BiConsumer<? super MFRouter, ? super MFApplicationPacketData> consumer = dataConsumers.get(packet.getDst());
+    protected long handleMFApplication(Node src, MFApplicationPacket packet) {
+        if (packet.getDstNA() == null || packet.getDstNA() == this.getNa()) {
+            BiConsumer<? super MFRouter, ? super MFApplicationPacket> consumer = dataConsumers.get(packet.getDst());
             if (consumer != null) { // if the application is listening, forward
-                consumer.accept(this, packet);
+                Timeline.addEvent(Timeline.nowInUs() + DURATION_HANDLE_DATA_FORWARD_TO_APPLICATION, p
+                        -> ((BiConsumer<? super MFRouter, ? super MFApplicationPacket>) p[0])
+                                .accept((MFRouter) p[1], (MFApplicationPacket) p[2]),
+                        consumer, this, packet);
                 return DURATION_HANDLE_DATA_FORWARD_TO_APPLICATION;
             }
-            // clear the dst na
-            packet = (MFApplicationPacketData) packet.copyWithNewDstNa(null);
-        } else if (packet.getDstNA() != null) { // not sent to me, not first hop either, simply forward
+        } else { // not sent to me, not first hop either, simply forward
             sendData(packet.getDstNA(), packet, false, DURATION_HANDLE_NA_FORWARDING);
             return DURATION_HANDLE_NA_FORWARDING;
         }
-        // now packet.getDstNA is null, I need to do store and forward
+        // now packet.getDstNA is null, try to see what I have in NRS cache
+        Tuple3<NA[], Integer, Long> tup = nrsCache.get(packet.getDst());
+        if (tup != null && tup.getV3() >= Timeline.nowInUs()) { // has the entry and active
+            NA[] nas = tup.getV1();
+            NA dataDst;
+            if (nas.length == 1) { // only 1 NA, use that directly
+                dataDst = nas[0];
+                if (dataDst != getNa()) {
+                    this.enqueueIncomingData(this, packet.copyWithNewDstNa(dataDst), false);
+                    return DURATION_HANDLE_DATA_ADD_NA_AND_FORWARD;
+                }
+                // otherwise, the result is stale, I should reissue the gnrs request
+            } else if (nas.length > 1) { // more than 1 NA, find the closest that is not me
+                dataDst = Stream.of(nas).filter(n -> n != getNa())
+                        .map(n -> new Tuple2<>(n, fib.get(n))) // append na with next hop, and distance
+                        .min((t1, t2) -> Long.compare(t1.getV2().getV2(), t2.getV2().getV2())) // find the na with minimal distance
+                        .map(t -> t.getV1()) // map it back to na
+                        .get();
+                this.enqueueIncomingData(this, packet.copyWithNewDstNa(dataDst), false);
+                return DURATION_HANDLE_DATA_ADD_NA_AND_FORWARD;
+            }
+        }
+
+        // I need to do store and forward
         GUID guid = packet.getDst();
-        HashSet<MFApplicationPacket> tmp = nrsPending.get(guid);
+        HashSet<Tuple2<MFApplicationPacket, Node>> tmp = nrsPending.get(guid);
         if (tmp == null) {
             nrsPending.put(guid, tmp = new HashSet<>());
             // I'm the first, issue request
-            enqueueIncomingData(this, new MFHopPacketGNRSRequest(guid, na));
+            enqueueIncomingData(this, new MFHopPacketGNRSRequest(guid, na), false);
         }
-        tmp.add(packet);
+        tmp.add(new Tuple2<>(packet, src));
         return DURATION_HANDLE_DATA_STORE_AND_FORWARD;
     }
 
+    protected long handleMFData(Node src, MFApplicationPacketData packet) {
+        return handleMFApplication(src, packet);
+    }
+
     @Override
-    protected void enqueueIncomingData(Node source, Data d) {
-        super.enqueueIncomingData(source, d);
+    protected void enqueueIncomingData(Node source, Data d, boolean prioritized) {
+        super.enqueueIncomingData(source, d, prioritized);
     }
 
 }

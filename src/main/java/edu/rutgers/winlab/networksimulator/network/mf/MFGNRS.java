@@ -68,9 +68,8 @@ public class MFGNRS extends MFRouter {
             version = tmp.getV2();
         }
         MFHopPacketGNRSResponse resp = new MFHopPacketGNRSResponse(guid, packet.getNa(), ret, version);
-        enqueueIncomingData(this, resp);
+        enqueueIncomingData(this, resp, true);
         return REQUEST_PROCESSING_TIME;
-
     }
 
     @Override
