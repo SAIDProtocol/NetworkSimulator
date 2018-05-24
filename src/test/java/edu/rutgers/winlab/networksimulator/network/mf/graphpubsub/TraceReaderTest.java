@@ -50,15 +50,18 @@ public class TraceReaderTest {
 
     @Test
     public void test1() throws IOException {
-        String linksFile = "/users/jiachen/Rocketfuel/1221/allLinks7.txt";
-        String subscriptionFile = "/users/jiachen/Wiki/subset_location_cat_subscriptions_modified.txt";
-        String catRelationsipsFile = "/users/jiachen/Wiki/subset_cat_subcats.txt";
+        String topologyPrefix = "/users/jiachen/Rocketfuel/1221/";
+        String wikiPrefix = "/users/jiachen/Wiki/";
+
+        String linksFile = topologyPrefix + "allLinks7.txt";
+        String subscriptionFile = wikiPrefix + "subset_location_cat_subscriptions_modified.txt";
+        String catRelationsipsFile = wikiPrefix + "subset_cat_subcats.txt";
         String gnrsRouterName = "Melbourne_+Australia734";
         String originalRPName = "Melbourne_+Australia3868";
         String pubRouterName = "Melbourne_+Australia3882";
         String newRPName = "Melbourne_+Australia751";
-        String publicationsFile = "/users/jiachen/Wiki/subset_publications.txt";
-        String deliveriesFile = "/users/jiachen/Wiki/subset_deliveries.txt";
+        String publicationsFile = wikiPrefix + "subset_publications.txt";
+        String deliveriesFile = wikiPrefix + "subset_deliveries.txt";
         String partitionFile = "RANDOM.txt";
         double timeMultiplication = 1.0 / 1;   // 1000 / timeMultiplication pkts per second
         String resultFile = "output.txt";
@@ -191,16 +194,19 @@ public class TraceReaderTest {
 
 //    @Test
     public void test2() throws IOException {
-        String linksFile = "/users/jiachen/Rocketfuel/1221/allLinks7.txt";
-        String subscriptionFile = "/users/jiachen/Wiki/subset_location_cat_subscriptions_modified.txt";
-        String catRelationsipsFile = "/users/jiachen/Wiki/subset_cat_name_subcats.txt";
+        String topologyPrefix = "/users/jiachen/Rocketfuel/1221/";
+        String wikiPrefix = "/users/jiachen/Wiki/";
+
+        String linksFile = topologyPrefix + "allLinks7.txt";
+        String subscriptionFile = wikiPrefix + "subset_location_cat_subscriptions_modified.txt";
+        String catRelationsipsFile = wikiPrefix + "subset_cat_name_subcats.txt";
         String gnrsRouterName = "Melbourne_+Australia734";
         String originalRPName = "Melbourne_+Australia3868";
         String pubRouterName = "Melbourne_+Australia3882";
         String newRPName = "Melbourne_+Australia751";
-        String publicationsFile = "/users/jiachen/Wiki/subset_publications.txt";
-        String deliveriesFile = "/users/jiachen/Wiki/subset_deliveries.txt";
-        String nameMappingFile = "/users/jiachen/Wiki/subset_cat_namemappings.txt";
+        String publicationsFile = wikiPrefix + "subset_publications.txt";
+        String deliveriesFile = wikiPrefix + "subset_deliveries.txt";
+        String nameMappingFile = wikiPrefix + "subset_cat_namemappings.txt";
         String partitionFile = "METIS.txt";
         double timeMultiplication = 1.0 / 1;   // 1000 / timeMultiplication pkts per second
         String resultFile = "output.txt";
@@ -337,7 +343,7 @@ public class TraceReaderTest {
                 networkTraffic.setV1(networkTraffic.getV1() + l.getBitsSent());
             });
         });
-        System.out.printf("%,d%n", networkTraffic.getV1());        
+        System.out.printf("%,d%n", networkTraffic.getV1());
     }
 
 }
