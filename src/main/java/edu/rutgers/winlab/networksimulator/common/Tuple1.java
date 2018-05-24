@@ -9,7 +9,7 @@ import java.util.Objects;
  */
 public class Tuple1<T> {
 
-    T v1;
+    private T v1;
 
     public Tuple1(T v1) {
         this.v1 = v1;

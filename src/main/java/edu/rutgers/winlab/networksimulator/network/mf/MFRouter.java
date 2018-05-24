@@ -27,15 +27,15 @@ import java.util.stream.Stream;
  */
 public class MFRouter extends Node {
 
-    public static final long DURATION_HANDLE_LSA = 100 * Timeline.US;
-    public static final long DURATION_HANDLE_NA_FORWARDING = 200 * Timeline.US;
-    public static final long DURATION_HANDLE_GNRS_RESPONSE = 1 * Timeline.MS;
-    public static final long DURATION_HANDLE_DATA_FORWARD_TO_APPLICATION = 100 * Timeline.US;
-    public static final long DURATION_HANDLE_DATA_STORE_AND_FORWARD = 1 * Timeline.MS;
-    public static final long DURATION_HANDLE_DATA_ADD_NA_AND_FORWARD = 300 * Timeline.US;
+    public static final long DURATION_HANDLE_LSA = 30 * Timeline.US;
+    public static final long DURATION_HANDLE_NA_FORWARDING = 30 * Timeline.US;
+    public static final long DURATION_HANDLE_GNRS_RESPONSE = 100 * Timeline.US;
+    public static final long DURATION_HANDLE_DATA_FORWARD_TO_APPLICATION = 10 * Timeline.US;
+    public static final long DURATION_HANDLE_DATA_STORE_AND_FORWARD = 100 * Timeline.US;
+    public static final long DURATION_HANDLE_DATA_ADD_NA_AND_FORWARD = 30 * Timeline.US;
     public static final long DURATION_HANDLE_OTHER = 50 * Timeline.US;
-    public static long durationNrsCacheExpire = 5 * Timeline.SECOND;
-    public static long durationNrsReIssue = 3 * Timeline.SECOND;
+    public static long durationNrsCacheExpire = 3600 * 24 * Timeline.SECOND;
+    public static long durationNrsReIssue = 3600 * 24 * Timeline.SECOND;
 
     private final NA na;
     private final NA gnrsNa;
@@ -80,6 +80,10 @@ public class MFRouter extends Node {
 
     public final void clearFib() {
         fib.clear();
+    }
+    
+    public final void setFib(NA na, Tuple2<Node, Long> nextHop) {
+        fib.put(na, nextHop);
     }
 
     public final Stream<Entry<GUID, Tuple3<NA[], Integer, Long>>> nrsCacheStream() {
@@ -163,11 +167,18 @@ public class MFRouter extends Node {
     private boolean updateNRSCacheIfActiveOrPending(GUID guid, NA[] nas, int version) {
         Long now = Timeline.nowInUs();
         Tuple3<NA[], Integer, Long> tuple = nrsCache.get(guid);
-        if (tuple != null // I should have the entry, otherwise, I'll not have the pending
-                && version >= tuple.getV2() // I have it and its version is OK
-                && (tuple.getV3() >= now || nrsPending.containsKey(guid))) { // And, it is active or I have pending
-            tuple.setValues(nas, version, now + durationNrsCacheExpire);
-            return true;
+//        if (tuple != null // I should have the entry, otherwise, I'll not have the pending
+//                && version >= tuple.getV2() // I have it and its version is OK
+//                && (tuple.getV3() >= now || nrsPending.containsKey(guid))) { // And, it is active or I have pending
+//            tuple.setValues(nas, version, now + durationNrsCacheExpire);
+//            return true;
+//        }
+        if (tuple != null) {
+            if (version >= tuple.getV2()) {
+                tuple.setValues(nas, version, now + durationNrsCacheExpire);
+            }
+        } else {
+            nrsCache.put(guid, new Tuple3<>(nas, version, now + durationNrsCacheExpire));
         }
         // version is not OK, OR (it is not active and I have no pending)
         return false;

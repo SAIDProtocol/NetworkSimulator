@@ -13,6 +13,7 @@ import edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets.MFAppl
 import edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets.MFApplicationPacketPublication;
 import edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets.MFApplicationPacketSubscription;
 import edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets.MFApplicationPacketUnSubscription;
+import edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets.SerialData;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.GUID;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.MFHopPacket;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.NA;
@@ -29,16 +30,17 @@ import java.util.stream.Stream;
 public class MFPubSubRouter extends MFRouter {
 
     public static final long DURATION_SEND_M1 = 100 * Timeline.MS;
-    public static final long DURATION_SEND_M2 = 200 * Timeline.MS;
-    public static final long DURATION_LOOKUP_SUBSCRIPTION_TABLE = 2 * Timeline.MS;
+    public static final long DURATION_SEND_M2 = 500 * Timeline.MS;
+    public static final long DURATION_LOOKUP_SUBSCRIPTION_TABLE = 30 * Timeline.US;
     public static final long DURATION_PUBLICATION_MULTICAST = DURATION_LOOKUP_SUBSCRIPTION_TABLE;
-    public static final long DURATION_INIT_RP = 2 * Timeline.MS;
+    public static final long DURATION_INIT_RP = 0 * Timeline.MS;
     public static final long DURATION_HANDLE_M1 = 1 * Timeline.MS;
     public static final long DURATION_HANDLE_M2 = 2 * Timeline.MS;
 
     private final HashMap<GUID, HashMap<NA, HashSet<Node>>> subscriptionTable = new HashMap<>();
     private final HashMap<GUID, HashSet<BiConsumer<? super MFPubSubRouter, ? super MFApplicationPacketPublication>>> applications = new HashMap<>();
     private final MFPubSubRP rp;
+    private long durationInitRP = DURATION_INIT_RP;
 
     public MFPubSubRouter(String name, PrioritizedQueue<Tuple2<Node, Data>> incomingQueue,
             NA gnrsNa, PrioritizedQueue<MFApplicationPacketPublication> rpQueue) {
@@ -98,6 +100,18 @@ public class MFPubSubRouter extends MFRouter {
     public void forEachChildGUID(GUID parent, Consumer<? super GUID> consumer) {
         rp.forEachChildGUID(parent, consumer);
     }
+
+    public int getIncomingPublication() {
+        return rp.getIncomingPublication();
+    }
+
+    public int getOutgoingUnicast() {
+        return rp.getOutgoingUnicast();
+    }
+
+    public int getOutgoingMulticast() {
+        return rp.getOutgoingMulticast();
+    }    
 
     public void moveRP(GUID guid, NA target) {
         assert rp.serve(guid) : "Can only move rp served at this router!";
@@ -206,7 +220,9 @@ public class MFPubSubRouter extends MFRouter {
         }
         rp.handleGUID(packet.getGUID());
         packet.getChildren().forEach(child -> rp.addGraphRelationship(packet.getGUID(), child));
-        return DURATION_INIT_RP;
+        long ret = durationInitRP;
+        durationInitRP = 0;
+        return ret;
     }
 
     protected long handleUnSubscription(Node src, MFApplicationPacketUnSubscription packet) {
@@ -284,6 +300,16 @@ public class MFPubSubRouter extends MFRouter {
     }
 
     protected long handlePublication(Node src, MFApplicationPacketPublication packet) {
+        if (packet.getPayload() instanceof SerialData) {
+            SerialData sd = (SerialData) packet.getPayload();
+            if (sd.getId() == 190064) {
+                System.out.printf("[%,d] %s got pub %d G:NULL(%s)->G:%d(%s) %s%n",
+                        Timeline.nowInUs(), getName(), sd.getId(),
+                        packet.getSrcNA() == null ? "" : packet.getSrcNA().getNode().getName(),
+                        packet.getDst().getRepresentation(), packet.getDstNA() == null ? "" : packet.getDstNA().getNode().getName(),
+                        (packet.getPayload() instanceof SerialData) ? ((SerialData) packet.getPayload()).getId() + "" : "");
+            }
+        }
         // on its way to RP
         if (packet.getSrcNA() == null) {
             return handleMFApplication(src, packet);

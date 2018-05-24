@@ -1,5 +1,6 @@
 package edu.rutgers.winlab.networksimulator.network.mf.graphpubsub;
 
+import edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets.SerialData;
 import edu.rutgers.winlab.networksimulator.common.Data;
 import edu.rutgers.winlab.networksimulator.common.PrioritizedQueue;
 import edu.rutgers.winlab.networksimulator.common.RandomData;
@@ -78,7 +79,7 @@ public class MFPubSubRouterTest {
                     Timeline.nowInUs(), getName(),
                     packet.getSrc().getRepresentation(), packet.getSrcNA() == null ? "" : packet.getSrcNA().getNode().getName(),
                     packet.getDst().getRepresentation(), packet.getDstNA() == null ? "" : packet.getDstNA().getNode().getName(),
-                    (packet.getPayload() instanceof SerialData) ? ((SerialData) packet.getPayload()).id + "" : "");
+                    (packet.getPayload() instanceof SerialData) ? ((SerialData) packet.getPayload()).getId() + "" : "");
             return super.handlePublication(src, packet);
         }
 
@@ -243,20 +244,6 @@ public class MFPubSubRouterTest {
         });
 
         MFRouter.durationNrsCacheExpire = duration;
-    }
-
-    public class SerialData extends RandomData {
-
-        private final int id;
-
-        public SerialData(int id, int sizeInBits) {
-            super(sizeInBits);
-            this.id = id;
-        }
-
-        public int getId() {
-            return id;
-        }
     }
 
     @Test
