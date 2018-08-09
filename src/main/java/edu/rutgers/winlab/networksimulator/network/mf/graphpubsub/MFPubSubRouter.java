@@ -187,7 +187,7 @@ public class MFPubSubRouter extends MFRouter {
         if (tmp != null) {
             HashSet<Node> tmp2 = tmp.get(packet.getSrcNA());
             if (tmp2 != null) {
-                tmp2.forEach(n -> sendData(n, packet, true));
+                tmp2.forEach(n -> sendUnicastData(n, packet, true));
                 // clean up the subscription table
                 tmp.remove(packet.getSrcNA());
                 if (tmp.isEmpty()) {
@@ -208,7 +208,7 @@ public class MFPubSubRouter extends MFRouter {
         if (tmp != null) {
             HashSet<Node> tmp2 = tmp.get(packet.getSrcNA());
             if (tmp2 != null) {
-                tmp2.forEach(n -> sendData(n, packet, true));
+                tmp2.forEach(n -> sendUnicastData(n, packet, true));
             }
         }
         return DURATION_HANDLE_M1;
@@ -327,7 +327,7 @@ public class MFPubSubRouter extends MFRouter {
             nextHops.values().forEach((value) -> {
                 targetNodes.addAll(value);
             });
-            targetNodes.forEach(n -> sendData(n, packet, false));
+            targetNodes.forEach(n -> sendUnicastData(n, packet, false));
         }
         // send it to applications
         HashSet<BiConsumer<? super MFPubSubRouter, ? super MFApplicationPacketPublication>> tmp = applications.get(packet.getDst());

@@ -1,6 +1,7 @@
 package edu.rutgers.winlab.networksimulator.common;
 
 import java.util.Objects;
+import java.util.function.BiFunction;
 
 /**
  *
@@ -21,6 +22,11 @@ public class Tuple1<T> {
 
     public void setV1(T v1) {
         this.v1 = v1;
+    }
+    
+    public T mergeV1(T v, BiFunction<? super T, ? super T, ? extends T> remappingFunction) {
+        this.v1 = remappingFunction.apply(this.v1, v);
+        return this.v1;
     }
 
     public void setValues(T v1) {

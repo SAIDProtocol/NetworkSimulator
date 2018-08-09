@@ -63,7 +63,7 @@ public class ReportingQueue<V, T extends PrioritizedQueue<V>> implements Priorit
 
     @Override
     public int getSize() {
-        return getSize();
+        return innerQueue.getSize();
     }
 
     @Override

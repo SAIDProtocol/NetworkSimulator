@@ -91,8 +91,8 @@ public class NodeTest {
         }
 
         @Override
-        public void sendData(Node destination, Data d, boolean prioritized) {
-            super.sendData(destination, d, prioritized);
+        public void sendUnicastData(Node destination, Data d, boolean prioritized) {
+            super.sendUnicastData(destination, d, prioritized);
         }
 
         @Override
@@ -104,8 +104,8 @@ public class NodeTest {
             if (target != null) {
                 Timeline.addEvent(Timeline.nowInUs() + processDuration,
                         e -> {
-                            sendData((Node) e[0], md.copy(), false);
-                            sendData((Node) e[0], md.copy(), false);
+                            sendUnicastData((Node) e[0], md.copy(), false);
+                            sendUnicastData((Node) e[0], md.copy(), false);
                         },
                         target, md);
             }
@@ -144,7 +144,7 @@ public class NodeTest {
                 new Tuple4<>(20050L, n1, n2, 15)
         );
         ArrayList<Node> tmp = new ArrayList<>();
-        n2.forEachLink(l -> tmp.add(l.getDestination()));
+        n2.forEachUnicastLink(l -> tmp.add(l.getDestination()));
         tmp.sort((na, nb) -> na.getName().compareTo(nb.getName()));
         assertArrayEquals(new Object[]{n1, n3}, tmp.toArray());
 
@@ -155,28 +155,28 @@ public class NodeTest {
         }
 
         Timeline.addEvent(0, ps -> {
-            n1.sendData(n2, new MyData(1000), false);
+            n1.sendUnicastData(n2, new MyData(1000), false);
             try {
-                n1.sendData(n3, new RandomData(1000), false);
+                n1.sendUnicastData(n3, new RandomData(1000), false);
                 fail("Should not reach here!");
             } catch (IllegalArgumentException e) {
             }
         });
         Timeline.addEvent(999, ps -> {
-            assertTrue(n1.linkStream().allMatch(l -> l.isBusy()));
-            assertFalse(n2.linkStream().anyMatch(l -> l.isBusy()));
+            assertTrue(n1.unicastLinkStream().allMatch(l -> l.isBusy()));
+            assertFalse(n2.unicastLinkStream().anyMatch(l -> l.isBusy()));
         });
         Timeline.addEvent(4001, ps -> {
-            n1.forEachLink(l -> {
+            n1.forEachUnicastLink(l -> {
                 assertEquals(false, l.isBusy());
             });
-            n2.forEachLink(l -> {
+            n2.forEachUnicastLink(l -> {
                 assertEquals(l.getDestination() == n3, l.isBusy());
             });
         });
 
         assertEquals(20050L, Timeline.run());
-        n2.forEachLink(l -> {
+        n2.forEachUnicastLink(l -> {
             assertEquals(n2, l.getSource());
             assertEquals(0, l.getBitsDiscarded());
             assertEquals(false, l.isBusy());
@@ -207,15 +207,15 @@ public class NodeTest {
 
         // pkt 2 is killed on the way, pkt 3 is killed when sending, pkt 4 is killed in the queue.
         Timeline.addEvent(0, ps -> {
-            n1.sendData(n2, new MyData(1000), false); // pkt 1
-            n1.sendData(n2, new MyData(1000), false); // pkt 2
-            n1.sendData(n2, new MyData(1000), false); // pkt 3
-            n1.sendData(n2, new MyData(1000), false); // pkt 4
-            n2.sendData(n1, new MyData(1000), false); // pkt 5
-            n2.sendData(n1, new MyData(1000), false); // pkt 6
+            n1.sendUnicastData(n2, new MyData(1000), false); // pkt 1
+            n1.sendUnicastData(n2, new MyData(1000), false); // pkt 2
+            n1.sendUnicastData(n2, new MyData(1000), false); // pkt 3
+            n1.sendUnicastData(n2, new MyData(1000), false); // pkt 4
+            n2.sendUnicastData(n1, new MyData(1000), false); // pkt 5
+            n2.sendUnicastData(n1, new MyData(1000), false); // pkt 6
         });
         Consumer<Node.AbstractLink> linkIdleHandler = l -> {
-            UnicastLink ul = (UnicastLink)l;
+            UnicastLink ul = (UnicastLink) l;
             assertEquals(4000L, Timeline.nowInUs());
             if (l.getSource() == n1) {
                 assertEquals(ul.getDestination(), n2);
@@ -251,7 +251,7 @@ public class NodeTest {
         Node.linkNodes(n1, n2, 1 * Node.BW_IN_MBPS, 1 * Timeline.MS, new UnlimitedQueue<>(), new UnlimitedQueue<>());
         Timeline.addEvent(0, ps -> {
             for (int i = 0; i < 10; i++) {
-                n1.sendData(n2, new MyData(500), false);
+                n1.sendUnicastData(n2, new MyData(500), false);
             }
         });
         assertEquals(13500L, Timeline.run());
@@ -269,5 +269,101 @@ public class NodeTest {
             assertEquals(n1, n);
             assertEquals((Long) 2000L, b);
         });
+    }
+
+    private static class Satellite extends Node {
+
+        private final long processingTime;
+        private final String broadcastChannelName;
+        private final ArrayList<Tuple4<Long, Node, Node, Integer>> result;
+
+        public Satellite(String name, PrioritizedQueue<Tuple2<Node, Data>> incomingQueue,
+                long processingTime, ArrayList<Tuple4<Long, Node, Node, Integer>> result,
+                String broadcastChannelName, int broadcastChannelBwInKbps, long broadcastChannelDelayInUs,
+                PrioritizedQueue<Data> broadcastChannelQueue) {
+            super(name, incomingQueue);
+            this.processingTime = processingTime;
+            this.broadcastChannelName = broadcastChannelName;
+            this.result = result;
+            createBroadcastChannel(broadcastChannelName, broadcastChannelBwInKbps, broadcastChannelDelayInUs, broadcastChannelQueue);
+        }
+
+        @Override
+        protected long handleData(Tuple2<Node, Data> t) {
+            MyData md = (MyData) t.getV2();
+            result.add(new Tuple4<>(Timeline.nowInUs(), this, t.getV1(), md.getSerial()));
+            sendBroadcastData(broadcastChannelName, md.copy(), false);
+            return processingTime;
+        }
+
+        public boolean addReceiver(Node n) {
+            return getBroadcastChannel(broadcastChannelName).addNode(n);
+        }
+
+        public boolean removeReceiver(Node n, boolean needDiscardDataInFlight) {
+            return getBroadcastChannel(broadcastChannelName).removeNode(n, needDiscardDataInFlight);
+        }
+    }
+
+    @Test
+    public void test4() {
+        String broadcastChannelName = "Test";
+        MyData.SERIAL = 1;
+        int satelliteLinkBw = 10 * Node.BW_IN_MBPS;
+        long satelliteLinkLatency = 150 * Timeline.MS;
+        int packetSize = 500 * Data.BYTE;
+
+        ArrayList<Tuple4<Long, Node, Node, Integer>> result = new ArrayList<>();
+
+        Satellite satellite = new Satellite("SATELLITE", new UnlimitedQueue<>(), 0, result,
+                broadcastChannelName, satelliteLinkBw, satelliteLinkLatency, new UnlimitedQueue<>());
+        TestNode sender = new TestNode("SENDER", new UnlimitedQueue<>(), 0, result);
+        TestNode n3 = new TestNode("N3", new ItemLimitedQueue<>(3), 0, result);
+        TestNode n4 = new TestNode("N4", new ItemLimitedQueue<>(3), 1000, result);
+        TestNode n5 = new TestNode("N5", new ItemLimitedQueue<>(3), 0, result);
+        TestNode n6 = new TestNode("N6", new ItemLimitedQueue<>(3), 0, result);
+
+        satellite.addReceiver(n3);
+        satellite.addReceiver(n4);
+        satellite.addReceiver(n5);
+        satellite.addReceiver(n6);
+        Node.linkNodes(sender, satellite, satelliteLinkBw, satelliteLinkLatency, new UnlimitedQueue<>(), new UnlimitedQueue<>());
+
+        try {
+            satellite.sendBroadcastData("$WRONG!$", new MyData(10), true);
+            fail();
+        } catch (Exception e) {
+
+        }
+        assertFalse(satellite.createBroadcastChannel(broadcastChannelName, satelliteLinkBw, satelliteLinkLatency, new UnlimitedQueue<>()));
+
+        Timeline.addEvent(0, ps -> {
+            for (int i = 0; i < 16; i++) {
+                sender.sendUnicastData(satellite, new MyData(packetSize), false);
+            }
+        });
+
+        System.out.printf("B=%,d, BW=%,d, R=%,d%n", packetSize, satelliteLinkBw, Node.getTransmitTimeInUs(packetSize, satelliteLinkBw));
+        Timeline.addEvent(satelliteLinkLatency * 2 + Node.getTransmitTimeInUs(packetSize, satelliteLinkBw) * 4 - 1, ps -> {
+            System.out.printf("%,d%n", Timeline.nowInUs());
+            satellite.getBroadcastChannel(broadcastChannelName).removeNode(n5, false);
+            satellite.getBroadcastChannel(broadcastChannelName).removeNode(n6, true);
+            satellite.getBroadcastChannel(broadcastChannelName).removeNode(n5, false);
+            satellite.getBroadcastChannel(broadcastChannelName).removeNode(n5, true);
+            satellite.getBroadcastChannel(broadcastChannelName).addNode(n6);
+            satellite.getBroadcastChannel(broadcastChannelName).removeNode(n6, true);
+        });
+        Timeline.addEvent(satelliteLinkLatency * 2 + Node.getTransmitTimeInUs(packetSize, satelliteLinkBw) * 10 - 1, ps -> {
+            System.out.printf("%,d%n", Timeline.nowInUs());
+            satellite.getBroadcastChannel(broadcastChannelName).abort();
+        });
+        Timeline.run();
+
+        result.forEach(t -> {
+            System.out.printf("[%,d] %s->%s %d%n", t.getV1(), t.getV2().getName(), t.getV3().getName(), t.getV4());
+        });
+
+        satellite.forEachBroadcastLink((n, l) -> System.out.printf("%s D:%,d, S:%,d%n", n, l.getBitsDiscarded(), l.getBitsSent()));
+        satellite.broadcastLinkStream().forEach(e -> System.out.printf("%s D:%,d, S:%,d%n", e.getKey(), e.getValue().getBitsDiscarded(), e.getValue().getBitsSent()));
     }
 }

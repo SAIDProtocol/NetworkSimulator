@@ -246,7 +246,7 @@ public class MFPubSubRouterTest {
         MFRouter.durationNrsCacheExpire = duration;
     }
 
-    @Test
+//    @Test
     public void test02() {
         LOG.log(Level.INFO, "RP migration");
 

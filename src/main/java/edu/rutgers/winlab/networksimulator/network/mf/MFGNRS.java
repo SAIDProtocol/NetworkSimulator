@@ -87,7 +87,7 @@ public class MFGNRS extends MFRouter {
             NA[] ret = new NA[tmp.getV1().size()];
             tmp.getV1().toArray(ret);
             Timeline.addEvent(Timeline.nowInUs() + ASSOCIATION_PROCESSING_TIME, p -> {
-                forEachLink(l -> sendData(l, (Data) p[0], true));
+                forEachUnicastLink(l -> sendData(l, (Data) p[0], true));
             }, new MFHopPacketGNRSResponse(guid, null, ret, tmp.getV2()));
         }
         return ASSOCIATION_PROCESSING_TIME;

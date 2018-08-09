@@ -122,7 +122,7 @@ public class MFRouter extends Node {
     public final void announceNA() {
         fib.put(na, new Tuple2<>(this, 0L));
         MFHopPacketLSA announce = new MFHopPacketLSA(na, Timeline.nowInUs());
-        forEachLink(l -> sendData(l, announce, true));
+        forEachUnicastLink(l -> sendData(l, announce, true));
     }
 
     protected Tuple2<Node, Long> getFibEntry(NA na) {
@@ -137,10 +137,10 @@ public class MFRouter extends Node {
         Tuple2<Node, Long> nextHop = fib.get(target);
         //next hop should not be null
         if (delay == 0) {
-            sendData(nextHop.getV1(), data, prioritized);
+            sendUnicastData(nextHop.getV1(), data, prioritized);
         } else {
             Timeline.addEvent(Timeline.nowInUs() + delay, prams -> {
-                sendData((Node) prams[0], (Data) prams[1], (Boolean) prams[2]);
+                sendUnicastData((Node) prams[0], (Data) prams[1], (Boolean) prams[2]);
             }, nextHop.getV1(), data, prioritized);
         }
     }
@@ -252,7 +252,7 @@ public class MFRouter extends Node {
             }
             // flood the announcement to other nodes. but how??
             Timeline.addEvent(Timeline.nowInUs() + DURATION_HANDLE_NA_FORWARDING, p -> {
-                forEachLink(l -> Node.sendData(l, (Data) p[0], true));
+                forEachUnicastLink(l -> Node.sendData(l, (Data) p[0], true));
             }, packet);
         } else {
             if (dst != getNa()) {
@@ -309,7 +309,7 @@ public class MFRouter extends Node {
             long duration = Timeline.nowInUs() - packet.getSendTime();
             fib.put(target, new Tuple2<>(src, duration));
             Timeline.addEvent(Timeline.nowInUs() + DURATION_HANDLE_LSA, ps -> {
-                forEachLink(l -> sendData(l, (Data) ps[0], true));
+                forEachUnicastLink(l -> sendData(l, (Data) ps[0], true));
             }, packet);
         }
         return DURATION_HANDLE_LSA;

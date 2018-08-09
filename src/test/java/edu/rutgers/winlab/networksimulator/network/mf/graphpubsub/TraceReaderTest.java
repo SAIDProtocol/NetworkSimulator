@@ -48,7 +48,7 @@ public class TraceReaderTest {
     public static void tearDownClass() {
     }
 
-    @Test
+//    @Test
     public void test1() throws IOException {
         String topologyPrefix = "/users/jiachen/Rocketfuel/1221/";
         String wikiPrefix = "/users/jiachen/Wiki/";
@@ -184,7 +184,7 @@ public class TraceReaderTest {
 
         Tuple1<Long> networkTraffic = new Tuple1<>(0L);
         routers.values().forEach(r -> {
-            r.forEachLink(l -> {
+            r.forEachUnicastLink(l -> {
                 networkTraffic.setV1(networkTraffic.getV1() + l.getBitsSent());
             });
         });
@@ -339,7 +339,7 @@ public class TraceReaderTest {
 
         Tuple1<Long> networkTraffic = new Tuple1<>(0L);
         routers.values().forEach(r -> {
-            r.forEachLink(l -> {
+            r.forEachUnicastLink(l -> {
                 networkTraffic.setV1(networkTraffic.getV1() + l.getBitsSent());
             });
         });
