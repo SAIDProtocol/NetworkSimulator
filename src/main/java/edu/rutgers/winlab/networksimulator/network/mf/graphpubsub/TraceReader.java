@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -45,6 +46,20 @@ public class TraceReader {
             Function<String, PrioritizedQueue<MFApplicationPacketPublication>> rpQueueGenerator,
             Supplier<PrioritizedQueue<Data>> linkQueueGenerator,
             int bwInBitsPerMs)
+            throws IOException {
+        return readNetworkTopology(gnrs, gnrsRouterName, linksFile, incomingQueueGenerator, rpQueueGenerator, linkQueueGenerator, bwInBitsPerMs, true);
+    }
+
+    // linksFile: n1 n2 latency
+    public static HashMap<String, MFPubSubRouter> readNetworkTopology(
+            MFGNRS gnrs,
+            String gnrsRouterName,
+            String linksFile,
+            Function<String, PrioritizedQueue<Tuple2<Node, Data>>> incomingQueueGenerator,
+            Function<String, PrioritizedQueue<MFApplicationPacketPublication>> rpQueueGenerator,
+            Supplier<PrioritizedQueue<Data>> linkQueueGenerator,
+            int bwInBitsPerMs,
+            boolean addRouting)
             throws IOException {
         HashMap<String, MFPubSubRouter> routers = new HashMap<>();
         Files.lines(Paths.get(linksFile)).forEach(l -> {
@@ -84,6 +99,40 @@ public class TraceReader {
 //        nodeLatencies.forEach((n, l) -> System.out.printf("%s\t%,d%n", n.getName(), l));
 //
         return routers;
+    }
+
+    // fibFile: targetRouter dstRouter nextHopToDstRouter distance
+    public static void readRouting(
+            HashMap<String, MFRouter> routers,
+            String fibFile) throws IOException {
+        AtomicInteger line = new AtomicInteger();
+        Files.lines(Paths.get(fibFile)).forEach(l -> {
+            int lineNo = line.incrementAndGet();
+            String[] parts = l.split("\t");
+            assert parts.length == 4;
+            String targetRouterName = parts[0], dstRouterName = parts[1], nextHopToDstRouterName = parts[2];
+            Long latency = Long.parseLong(parts[3]);
+            MFRouter targetRouter = routers.get(targetRouterName);
+            if (targetRouter == null) {
+                System.out.printf("Cannot find router %s, line: %d%n", targetRouterName, lineNo);
+                return;
+            }
+            MFRouter dstRouter = routers.get(dstRouterName);
+            if (dstRouter == null) {
+                System.out.printf("Cannot find router %s, line: %d%n", dstRouterName, lineNo);
+                return;
+            }
+            MFRouter nextHopToDstRouter = routers.get(nextHopToDstRouterName);
+            if (nextHopToDstRouter == null) {
+                System.out.printf("Cannot find router %s, line: %d%n", nextHopToDstRouterName, lineNo);
+                return;
+            }
+            if (latency < 0) {
+                System.out.printf("Latency %d < 0, line: %d%n", latency, lineNo);
+                return;
+            }
+            targetRouter.setFib(dstRouter.getNa(), new Tuple2<>(nextHopToDstRouter, latency));
+        });
     }
 
     // catSubCatsFile: catId catName parentCatId parentCatName

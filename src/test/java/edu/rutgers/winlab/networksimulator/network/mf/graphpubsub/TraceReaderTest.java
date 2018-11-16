@@ -5,7 +5,6 @@
  */
 package edu.rutgers.winlab.networksimulator.network.mf.graphpubsub;
 
-import edu.rutgers.winlab.networksimulator.common.Data;
 import edu.rutgers.winlab.networksimulator.common.PrioritizedQueue;
 import edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets.SerialData;
 import edu.rutgers.winlab.networksimulator.common.ReportObject;
@@ -17,16 +16,21 @@ import edu.rutgers.winlab.networksimulator.common.Tuple3;
 import edu.rutgers.winlab.networksimulator.common.UnlimitedQueue;
 import edu.rutgers.winlab.networksimulator.network.Node;
 import edu.rutgers.winlab.networksimulator.network.mf.MFGNRS;
+import edu.rutgers.winlab.networksimulator.network.mf.MFRouter;
 import edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets.MFApplicationPacketPublication;
 import edu.rutgers.winlab.networksimulator.network.mf.packets.GUID;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -48,7 +52,7 @@ public class TraceReaderTest {
     public static void tearDownClass() {
     }
 
-//    @Test
+    @Test
     public void test1() throws IOException {
         String topologyPrefix = "/users/jiachen/Rocketfuel/1221/";
         String wikiPrefix = "/users/jiachen/Wiki/";
@@ -60,11 +64,12 @@ public class TraceReaderTest {
         String originalRPName = "Melbourne_+Australia3868";
         String pubRouterName = "Melbourne_+Australia3882";
         String newRPName = "Melbourne_+Australia751";
-        String publicationsFile = wikiPrefix + "subset_publications.txt";
-        String deliveriesFile = wikiPrefix + "subset_deliveries.txt";
-        String partitionFile = "RANDOM.txt";
+        String publicationsFile = wikiPrefix + "subset_publications_hld.txt";
+        String deliveriesFile = wikiPrefix + "subset_deliveries_hld.txt";
+        String partitionFile = "metisTabu.txt";
         double timeMultiplication = 1.0 / 1;   // 1000 / timeMultiplication pkts per second
-        String resultFile = "output.txt";
+        String resultFile = "output_hld.txt";
+        String fibFile = topologyPrefix + "fib_ucr.txt";
 
         MFGNRS gnrs = new MFGNRS("GNRS", new UnlimitedQueue<>());
         HashMap<String, PrintStream> queuePses = new HashMap<>();
@@ -75,8 +80,8 @@ public class TraceReaderTest {
         System.out.printf("toMigrate: %d%n", migrateGUIDs.size());
 
         BiConsumer<String, Integer> rpQueueConsumer = (q, l) -> {
-            if (canMigrate.getV1() && l > 100) {
-                System.out.println("Migrate!!!!!");
+            if (canMigrate.getV1() && l > 200) {
+                System.out.printf("[%,d] Migrate!!!!!        %n", Timeline.nowInUs());
                 canMigrate.setV1(false);
                 migrateGUIDs.forEach(migrateGUID -> {
                     originalRP.getV1().moveRP(migrateGUID, newRP.getV1().getNa());
@@ -118,9 +123,28 @@ public class TraceReaderTest {
                     ReportingQueue<MFApplicationPacketPublication, PrioritizedQueue<MFApplicationPacketPublication>> report = new ReportingQueue<>(name, inner, rpQueueConsumer);
                     return report;
                 }, () -> new UnlimitedQueue<>(),
-                100 * Node.BW_IN_MBPS);
+                100 * Node.BW_IN_MBPS,
+                fibFile == null);
 
-        routers.get("Melbourne_+Australia3882").setFib(routers.get("Melbourne_+Australia751").getNa(), new Tuple2<>(routers.get("Melbourne_+Australia734"), 2032L));
+        if (fibFile != null) {
+            HashMap<String, MFRouter> tmp = new HashMap<>(routers);
+            tmp.put(gnrs.getName(), gnrs);
+            TraceReader.readRouting(tmp, fibFile);
+        } else {
+            routers.get("Melbourne_+Australia3882").setFib(routers.get("Melbourne_+Australia751").getNa(), new Tuple2<>(routers.get("Melbourne_+Australia734"), 2032L));
+        }
+
+        Files.write(Paths.get("fib.txt"),
+                (Iterable<String>) routers.entrySet().stream().map(
+                        e -> e.getValue().fibStream().map(e2
+                                -> String.format("%s\t%s\t%s\t%d",
+                                e.getKey(),
+                                e2.getKey().getNode().getName(),
+                                e2.getValue().getV1().getName(),
+                                e2.getValue().getV2())
+                        )
+                ).flatMap(Function.identity())::iterator
+        );
 
         originalRP.setV1(routers.get(originalRPName));
         newRP.setV1(routers.get(newRPName));
@@ -150,7 +174,7 @@ public class TraceReaderTest {
         };
 
         HashMap<String, Tuple2<GUID, MFPubSubRouter>> subscriptions = TraceReader.readSubscriptions(routers, subscriptionFile, consumer);
-//        TraceReader.readDeliveries(deliveriesFile, subscriptions, timeMultiplication, deliveries);
+        TraceReader.readDeliveries(deliveriesFile, subscriptions, timeMultiplication, deliveries);
 
         ro.beginReport();
 
