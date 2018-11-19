@@ -315,6 +315,7 @@ public class MFRouter extends Node {
         return DURATION_HANDLE_LSA;
     }
 
+    @SuppressWarnings("unchecked")
     protected long handleMFApplication(Node src, MFApplicationPacket packet) {
         if (packet.getDstNA() == null || packet.getDstNA() == this.getNa()) {
             BiConsumer<? super MFRouter, ? super MFApplicationPacket> consumer = dataConsumers.get(packet.getDst());

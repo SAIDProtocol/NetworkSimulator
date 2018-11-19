@@ -300,16 +300,17 @@ public class MFPubSubRouter extends MFRouter {
     }
 
     protected long handlePublication(Node src, MFApplicationPacketPublication packet) {
-        if (packet.getPayload() instanceof SerialData) {
-            SerialData sd = (SerialData) packet.getPayload();
-            if (sd.getId() == 190064) {
-                System.out.printf("[%,d] %s got pub %d G:NULL(%s)->G:%d(%s) %s%n",
-                        Timeline.nowInUs(), getName(), sd.getId(),
-                        packet.getSrcNA() == null ? "" : packet.getSrcNA().getNode().getName(),
-                        packet.getDst().getRepresentation(), packet.getDstNA() == null ? "" : packet.getDstNA().getNode().getName(),
-                        (packet.getPayload() instanceof SerialData) ? ((SerialData) packet.getPayload()).getId() + "" : "");
-            }
-        }
+//        if (packet.getPayload() instanceof SerialData) {
+//            SerialData sd = (SerialData) packet.getPayload();
+//            if (sd.getId() == 300374) {
+//                System.out.printf("[%,d] %s got pub from %s %d G:NULL(%s)->G:%d(%s) %s%n",
+//                        Timeline.nowInUs(), getName(), src.getName(), sd.getId(),
+//                        packet.getSrcNA() == null ? "" : packet.getSrcNA().getNode().getName(),
+//                        packet.getDst().getRepresentation(), 
+//                        packet.getDstNA() == null ? "" : packet.getDstNA().getNode().getName(),
+//                        (packet.getPayload() instanceof SerialData) ? ((SerialData) packet.getPayload()).getId() + "" : "");
+//            }
+//        }
         // on its way to RP
         if (packet.getSrcNA() == null) {
             return handleMFApplication(src, packet);

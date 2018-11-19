@@ -26,7 +26,6 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -44,7 +43,7 @@ public class TraceReader {
             String linksFile,
             Function<String, PrioritizedQueue<Tuple2<Node, Data>>> incomingQueueGenerator,
             Function<String, PrioritizedQueue<MFApplicationPacketPublication>> rpQueueGenerator,
-            Supplier<PrioritizedQueue<Data>> linkQueueGenerator,
+            Function<String, PrioritizedQueue<Data>> linkQueueGenerator,
             int bwInBitsPerMs)
             throws IOException {
         return readNetworkTopology(gnrs, gnrsRouterName, linksFile, incomingQueueGenerator, rpQueueGenerator, linkQueueGenerator, bwInBitsPerMs, true);
@@ -57,7 +56,7 @@ public class TraceReader {
             String linksFile,
             Function<String, PrioritizedQueue<Tuple2<Node, Data>>> incomingQueueGenerator,
             Function<String, PrioritizedQueue<MFApplicationPacketPublication>> rpQueueGenerator,
-            Supplier<PrioritizedQueue<Data>> linkQueueGenerator,
+            Function<String, PrioritizedQueue<Data>> linkQueueGenerator,
             int bwInBitsPerMs,
             boolean addRouting)
             throws IOException {
@@ -75,11 +74,15 @@ public class TraceReader {
             if (n2 == null) {
                 routers.put(n2Name, n2 = new MFPubSubRouter(n2Name, incomingQueueGenerator.apply(n2Name), gnrs.getNa(), rpQueueGenerator.apply(n2Name + "_RP")));
             }
-            Node.linkNodes(n1, n2, bwInBitsPerMs, latency, linkQueueGenerator.get(), linkQueueGenerator.get());
+            Node.linkNodes(n1, n2, bwInBitsPerMs, latency,
+                    linkQueueGenerator.apply(n1.getName() + "->" + n2.getName()),
+                    linkQueueGenerator.apply(n2.getName() + "->" + n1.getName()));
         });
 
         MFPubSubRouter gnrsRouter = routers.get(gnrsRouterName);
-        Node.linkNodes(gnrsRouter, gnrs, bwInBitsPerMs, 1 * Timeline.MS, linkQueueGenerator.get(), linkQueueGenerator.get());
+        Node.linkNodes(gnrsRouter, gnrs, bwInBitsPerMs, 1 * Timeline.MS,
+                linkQueueGenerator.apply(gnrsRouter.getName() + "->" + gnrs.getName()),
+                linkQueueGenerator.apply(gnrs.getName() + "->" + gnrsRouter.getName()));
 
         Timeline.addEvent(0, ps -> ((MFRouter) ps[0]).announceNA(), gnrs);
         Timeline.run();
@@ -150,8 +153,11 @@ public class TraceReader {
         });
 
         Timeline.addEvent(0, ps -> {
+            @SuppressWarnings("unchecked")
             HashSet<GUID> p0 = (HashSet<GUID>) ps[0];
+            @SuppressWarnings("unchecked")
             ArrayList<Tuple2<GUID, GUID>> p1 = (ArrayList<Tuple2<GUID, GUID>>) ps[1];
+            @SuppressWarnings("unchecked")
             MFPubSubRouter p2 = (MFPubSubRouter) ps[2];
             p0.forEach(g -> p2.registerRP(g));
             // traffic should flow from child category to parent category here
@@ -162,13 +168,13 @@ public class TraceReader {
     }
 
     // subscritionFile: routerId subId subCatId subCatName
-    // return: key:subId value: subCatId routerId
-    public static HashMap<String, Tuple2<GUID, MFPubSubRouter>> readSubscriptions(
+    // subscriptions (output):subId value: subCatId routerId
+    public static void readSubscriptions(
             HashMap<String, MFPubSubRouter> routers,
             String locationSubscriptionFile,
-            BiConsumer<? super MFPubSubRouter, ? super MFApplicationPacketPublication> publicationHandler)
+            BiConsumer<? super MFPubSubRouter, ? super MFApplicationPacketPublication> publicationHandler,
+            HashMap<Tuple2<GUID, MFPubSubRouter>, String> subscriptions)
             throws IOException {
-        HashMap<String, Tuple2<GUID, MFPubSubRouter>> subscriptions = new HashMap<>();
 
         Files.lines(Paths.get(locationSubscriptionFile)).forEach(l -> {
             String[] parts = l.split("\t");
@@ -177,19 +183,20 @@ public class TraceReader {
             String subscriberName = parts[1];
             GUID guid = new GUID(Integer.parseInt(parts[2]));
             MFPubSubRouter router = routers.get(routerName);
-            subscriptions.put(subscriberName, new Tuple2<>(guid, router));
+            subscriptions.put(new Tuple2<>(guid, router), subscriberName);
         });
 
         Timeline.addEvent(0, ps -> {
+            @SuppressWarnings("unchecked")
             Collection<Tuple2<GUID, MFPubSubRouter>> p0 = (Collection<Tuple2<GUID, MFPubSubRouter>>) ps[0];
+            @SuppressWarnings("unchecked")
             BiConsumer<? super MFPubSubRouter, ? super MFApplicationPacketPublication> p1 = (BiConsumer<? super MFPubSubRouter, ? super MFApplicationPacketPublication>) ps[1];
             p0.forEach(t -> {
                 t.getV2().subscribe(t.getV1(), p1);
             });
-        }, subscriptions.values(), publicationHandler);
+        }, subscriptions.keySet(), publicationHandler);
         long finish = Timeline.run();
         System.out.printf("Finish=%,d%n", finish);
-        return subscriptions;
     }
 
     // subscritionFile: routerId subId subCatId subCatName
@@ -215,7 +222,9 @@ public class TraceReader {
         });
 
         Timeline.addEvent(0, ps -> {
+            @SuppressWarnings("unchecked")
             Collection<Tuple2<GUID, MFPubSubRouter>> p0 = (Collection<Tuple2<GUID, MFPubSubRouter>>) ps[0];
+            @SuppressWarnings("unchecked")
             BiConsumer<? super MFPubSubRouter, ? super MFApplicationPacketPublication> p1 = (BiConsumer<? super MFPubSubRouter, ? super MFApplicationPacketPublication>) ps[1];
             p0.forEach(t -> {
                 GUID[] targets = catToHierarchicalMapping.get(t.getV1());
@@ -277,6 +286,7 @@ public class TraceReader {
         return new Tuple3<>(pubId, pubTime, pubGUID);
     }
 
+    @SuppressWarnings("unchecked")
     private static void timelineRunner(Object... params) {
         Tuple3<Integer, Long, GUID> pub = (Tuple3<Integer, Long, GUID>) params[0];
         Function<GUID, MFPubSubRouter> pubGetter = (Function<GUID, MFPubSubRouter>) params[3];
@@ -306,6 +316,7 @@ public class TraceReader {
         Timeline.addEvent(pub.getV2(), TraceReader::timelineRunnerForHierarchical, pub, it, timeMultiplication, pubGetter, catToHierarchicalMapping);
     }
 
+    @SuppressWarnings("unchecked")
     private static void timelineRunnerForHierarchical(Object... params) {
         Tuple3<Integer, Long, GUID> pub = (Tuple3<Integer, Long, GUID>) params[0];
         Function<GUID, MFPubSubRouter> pubGetter = (Function<GUID, MFPubSubRouter>) params[3];
@@ -359,13 +370,14 @@ public class TraceReader {
             }
         }
 
-        Timeline.addEvent(start, TraceReader::statisticsRunner, period, end, routerPs);
+        Timeline.addEvent(start, TraceReader::routerStatisticsRunner, period, end, routerPs);
     }
 
-    private static void statisticsRunner(Object... params) {
+    private static void routerStatisticsRunner(Object... params) {
         long period = (Long) params[0];
         long end = (Long) params[1];
         long now = Timeline.nowInUs();
+        @SuppressWarnings("unchecked")
         HashMap<MFPubSubRouter, Tuple4<PrintStream, Integer, Integer, Integer>> routerPs = (HashMap<MFPubSubRouter, Tuple4<PrintStream, Integer, Integer, Integer>>) params[2];
         routerPs.forEach((r, t) -> {
             int incomingPublication = r.getIncomingPublication(),
@@ -385,9 +397,43 @@ public class TraceReader {
                 t.getV1().close();
             });
         } else {
-            Timeline.addEvent(now + period, TraceReader::statisticsRunner, params);
+            Timeline.addEvent(now + period, TraceReader::routerStatisticsRunner, params);
         }
 
+    }
+
+    public static void setReadStatistics(long start, long end, long period, Node.UnicastLink[] links) {
+        HashMap<Node.UnicastLink, PrintStream> linkPs = new HashMap<>();
+        for (Node.UnicastLink link : links) {
+            try {
+                PrintStream ps = new PrintStream(link.getSource().getName() + "->" + link.getDestination().getName() + "_stat.txt");
+                System.out.println(link.getSource().getName() + "->" + link.getDestination().getName() + "_stat.txt");
+                ps.println("Time\tBitsSent\tBitsDiscarded");
+                linkPs.put(link, ps);
+            } catch (FileNotFoundException ex) {
+                Logger.getLogger(TraceReader.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        Timeline.addEvent(start, TraceReader::linkStatisticsRunner, period, end, linkPs);
+    }
+
+    private static void linkStatisticsRunner(Object... params) {
+        long period = (Long) params[0];
+        long end = (Long) params[1];
+        long now = Timeline.nowInUs();
+        @SuppressWarnings("unchecked")
+        HashMap<Node.UnicastLink, PrintStream> linkPs = (HashMap<Node.UnicastLink, PrintStream>) params[2];
+        linkPs.forEach((l, t) -> {
+            t.printf("%d\t%d\t%d%n", now, l.getBitsSent(), l.getBitsDiscarded());
+        });
+        if (now + period > end) {
+            linkPs.forEach((r, t) -> {
+                t.flush();
+                t.close();
+            });
+        } else {
+            Timeline.addEvent(now + period, TraceReader::linkStatisticsRunner, params);
+        }
     }
 
     public static void readNameMapping(String mappingFile, HashMap<GUID, GUID[]> catToHierarchicalMapping, HashMap<GUID, GUID> hierarchicalToCatMapping) throws IOException {

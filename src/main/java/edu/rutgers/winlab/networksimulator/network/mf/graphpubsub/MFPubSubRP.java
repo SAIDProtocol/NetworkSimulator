@@ -106,16 +106,16 @@ public class MFPubSubRP {
     }
 
     protected long handlePublication(MFApplicationPacketPublication p) {
-        if (p.getPayload() instanceof SerialData) {
-            SerialData sd = (SerialData) p.getPayload();
-            if (sd.getId() == 190064) {
-                System.out.printf("[%,d] %s RP got pub %d G:NULL(%s)->G:%d(%s) %s%n",
-                        Timeline.nowInUs(), getNa().getNode().getName(), sd.getId(),
-                        p.getSrcNA() == null ? "" : p.getSrcNA().getNode().getName(),
-                        p.getDst().getRepresentation(), p.getDstNA() == null ? "" : p.getDstNA().getNode().getName(),
-                        (p.getPayload() instanceof SerialData) ? ((SerialData) p.getPayload()).getId() + "" : "");
-            }
-        }
+//        if (p.getPayload() instanceof SerialData) {
+//            SerialData sd = (SerialData) p.getPayload();
+//            if (sd.getId() == 300374) {
+//                System.out.printf("[%,d] %s RP got pub %d G:NULL(%s)->G:%d(%s) %s%n",
+//                        Timeline.nowInUs(), getNa().getNode().getName(), sd.getId(),
+//                        p.getSrcNA() == null ? "" : p.getSrcNA().getNode().getName(),
+//                        p.getDst().getRepresentation(), p.getDstNA() == null ? "" : p.getDstNA().getNode().getName(),
+//                        (p.getPayload() instanceof SerialData) ? ((SerialData) p.getPayload()).getId() + "" : "");
+//            }
+//        }
 //        System.out.printf("[%d] RP %s got G:%d(%s)->G:%d(%s) p:%s%n",
 //                Timeline.nowInUs(),
 //                na.getNode().getName(),
@@ -132,6 +132,7 @@ public class MFPubSubRP {
         long timeConsumed = bfsTime + (handle.size() + forward.size()) * DURATION_PROCESS_PUBLICATION;
 //        timeConsumed = 0;
         Timeline.addEvent(Timeline.nowInUs() + timeConsumed, ps -> {
+            @SuppressWarnings("unchecked")
             HashSet<GUID> h = (HashSet<GUID>) ps[0], f = (HashSet<GUID>) ps[1];
             h.forEach(g -> sender.accept(p.copyWithNewDstGUIDAndSrcNa(g, na)));
             f.forEach(g -> sender.accept(p.copyWithNewDstGUIDAndSrcNa(g, null)));

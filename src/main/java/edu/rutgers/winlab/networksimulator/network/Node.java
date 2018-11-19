@@ -80,6 +80,13 @@ public abstract class Node {
         unicastLinks.put(another, ret);
         return ret;
     }
+    
+    public UnicastLink getUnicastLink(Node another) {
+        if (!isUnicastLinkedWith(another)) {
+            throw new IllegalArgumentException(String.format("%s is not linked to %s.", name, another.name));
+        }
+        return unicastLinks.get(another);
+    }
 
     public UnicastLink unicastDisconnect(Node another) {
         UnicastLink l = unicastLinks.remove(another);

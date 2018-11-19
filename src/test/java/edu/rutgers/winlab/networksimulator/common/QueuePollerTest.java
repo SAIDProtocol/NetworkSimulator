@@ -89,7 +89,9 @@ public class QueuePollerTest {
         Timeline.addEvent(15000, addEventHandler, 7000L, true);
         Timeline.addEvent(15000, addEventHandler, 0L, false);
         Timeline.addEvent(4000, objs -> {
+            @SuppressWarnings("unchecked")
             QueuePoller<Long> tmp = (QueuePoller<Long>) objs[0];
+            @SuppressWarnings("unchecked")
             ArrayList<Long> tmp2 = new ArrayList<>();
             // at time 4000, 1000 and 2000 are done, 4000 running. remaining: 3000 and 5000
             assertStreamEquals(Stream.of(3000L, 5000L), tmp.stream());

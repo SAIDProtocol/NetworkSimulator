@@ -5,6 +5,7 @@
  */
 package edu.rutgers.winlab.networksimulator.network.mf.graphpubsub;
 
+import edu.rutgers.winlab.networksimulator.common.Data;
 import edu.rutgers.winlab.networksimulator.common.PrioritizedQueue;
 import edu.rutgers.winlab.networksimulator.network.mf.graphpubsub.packets.SerialData;
 import edu.rutgers.winlab.networksimulator.common.ReportObject;
@@ -23,14 +24,11 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -54,8 +52,8 @@ public class TraceReaderTest {
 
     @Test
     public void test1() throws IOException {
-        String topologyPrefix = "/users/jiachen/Rocketfuel/1221/";
-        String wikiPrefix = "/users/jiachen/Wiki/";
+        String topologyPrefix = "/root/Rocketfuel/1221/";
+        String wikiPrefix = "/root/Wiki/";
 
         String linksFile = topologyPrefix + "allLinks7.txt";
         String subscriptionFile = wikiPrefix + "subset_location_cat_subscriptions_modified.txt";
@@ -65,16 +63,16 @@ public class TraceReaderTest {
         String pubRouterName = "Melbourne_+Australia3882";
         String newRPName = "Melbourne_+Australia751";
         String publicationsFile = wikiPrefix + "subset_publications_hld.txt";
-        String deliveriesFile = wikiPrefix + "subset_deliveries_hld.txt";
-        String partitionFile = "metisTabu.txt";
+        String partitionFile = "METIS.txt";
         double timeMultiplication = 1.0 / 1;   // 1000 / timeMultiplication pkts per second
-        String resultFile = "output_hld.txt";
-        String fibFile = topologyPrefix + "fib_ucr.txt";
+        String resultFile = "output_hld_3.txt";
+        String fibFile = topologyPrefix + "fib_ucr_modified.txt";
 
         MFGNRS gnrs = new MFGNRS("GNRS", new UnlimitedQueue<>());
         HashMap<String, PrintStream> queuePses = new HashMap<>();
 
         Tuple1<Boolean> canMigrate = new Tuple1<>(true);
+        Tuple1<Boolean> writeQueue = new Tuple1<>(false);
         Tuple1<MFPubSubRouter> originalRP = new Tuple1<>(null), newRP = new Tuple1<>(null);
         Set<GUID> migrateGUIDs = TraceReader.readPartitionFile(partitionFile).collect(Collectors.toSet());
         System.out.printf("toMigrate: %d%n", migrateGUIDs.size());
@@ -97,7 +95,9 @@ public class TraceReaderTest {
                 e.printStackTrace(System.err);
             }
         };
+
         BiConsumer<String, Integer> routerQueueConsumer = (q, l) -> {
+//            if (writeQueue.getV1()) {
             try {
                 PrintStream queuePs = queuePses.get(q);
                 if (queuePs == null) {
@@ -107,22 +107,29 @@ public class TraceReaderTest {
             } catch (IOException e) {
                 e.printStackTrace(System.err);
             }
+//            }
         };
 
         HashMap<String, MFPubSubRouter> routers = TraceReader.readNetworkTopology(
                 gnrs, gnrsRouterName,
                 linksFile, (name) -> {
-//                    if (name.equals(originalRPName) || name.equals(newRPName)) {
-//                        PrioritizedQueue<Tuple2<Node, Data>> inner = new UnlimitedQueue<>();
-//                        ReportingQueue<Tuple2<Node, Data>, PrioritizedQueue<Tuple2<Node, Data>>> report = new ReportingQueue<>(name, inner, routerQueueConsumer);
-//                        return report;
-//                    }
+                    if (name.equals(originalRPName) || name.equals(newRPName)) {
+                        PrioritizedQueue<Tuple2<Node, Data>> inner = new UnlimitedQueue<>();
+                        ReportingQueue<Tuple2<Node, Data>, PrioritizedQueue<Tuple2<Node, Data>>> report = new ReportingQueue<>(name, inner, routerQueueConsumer);
+                        return report;
+                    }
                     return new UnlimitedQueue<>();
                 }, name -> {
                     PrioritizedQueue<MFApplicationPacketPublication> inner = new UnlimitedQueue<>();
+//                    return inner;
                     ReportingQueue<MFApplicationPacketPublication, PrioritizedQueue<MFApplicationPacketPublication>> report = new ReportingQueue<>(name, inner, rpQueueConsumer);
                     return report;
-                }, () -> new UnlimitedQueue<>(),
+                }, name -> {
+                    PrioritizedQueue<Data> inner = new UnlimitedQueue<>();
+                    return inner;
+//                    ReportingQueue<Data, PrioritizedQueue<Data>> report = new ReportingQueue<>(name, inner, routerQueueConsumer);
+//                    return report;
+                },
                 100 * Node.BW_IN_MBPS,
                 fibFile == null);
 
@@ -151,35 +158,31 @@ public class TraceReaderTest {
         MFPubSubRouter pubRouter = routers.get(pubRouterName);
 
         TraceReader.putAllGUIDsOnOneRouter(originalRP.getV1(), catRelationsipsFile);
+        HashMap<Tuple2<GUID, MFPubSubRouter>, String> subscriptions = new HashMap<>();
 
-        ReportObject ro = new ReportObject();
-        ro.setKey("Receives", 1);
-        ro.setKey("Redundant", 2);
-        ro.setKey("Extra", 3);
-        ro.setKey("Now", () -> String.format("%,d", Timeline.nowInUs()));
+        try (PrintStream ps = new PrintStream(resultFile)) {
+            ReportObject ro = new ReportObject();
+            ro.setKey("Receives", 1);
+            ro.setKey("Redundant", 2);
+            ro.setKey("Extra", 3);
+            ro.setKey("Now", () -> String.format("%,d", Timeline.nowInUs()));
 
-        HashMap<Tuple3<MFPubSubRouter, GUID, Integer>, Tuple3<String, Long, Long>> deliveries = new HashMap<>();
-        BiConsumer<MFPubSubRouter, MFApplicationPacketPublication> consumer = (r, p) -> {
-            SerialData sd = (SerialData) p.getPayload();
-            Tuple3<MFPubSubRouter, GUID, Integer> key = new Tuple3<>(r, p.getDst(), sd.getId());
-            Tuple3<String, Long, Long> val = deliveries.get(key);
-            if (val == null) {
-                ro.incrementValue(3);
-            } else if (val.getV3() != Long.MIN_VALUE) {
-                ro.incrementValue(2);
-            } else {
-                ro.incrementValue(1);
-                val.setV3(Timeline.nowInUs());
-            }
-        };
+            BiConsumer<MFPubSubRouter, MFApplicationPacketPublication> consumer = (r, p) -> {
+                SerialData sd = (SerialData) p.getPayload();
+                GUID guid = p.getDst();
+                String subscription = subscriptions.get(new Tuple2<>(guid, r));
+                if (subscription == null) {
+                    ro.incrementValue(3);
+                } else {
+                    ro.incrementValue(1);
+                    ps.printf("%d\t%s\t%d\t%d%n", sd.getId(), subscription, Timeline.nowInUs(), guid.getRepresentation());
+                }
+            };
 
-        HashMap<String, Tuple2<GUID, MFPubSubRouter>> subscriptions = TraceReader.readSubscriptions(routers, subscriptionFile, consumer);
-        TraceReader.readDeliveries(deliveriesFile, subscriptions, timeMultiplication, deliveries);
+            TraceReader.readSubscriptions(routers, subscriptionFile, consumer, subscriptions);
 
-        ro.beginReport();
-
-        //TODO: modify here
-        TraceReader.readPublications(publicationsFile, timeMultiplication, i -> {
+            //TODO: modify here
+            TraceReader.readPublications(publicationsFile, timeMultiplication, i -> {
 //            if (canMigrate.getV1()) {
 //                return originalRP.getV1();
 //            } else if (migrateGUIDs.contains(i)) {
@@ -187,24 +190,28 @@ public class TraceReaderTest {
 //            } else {
 //                return originalRP.getV1();
 //            }
-            return pubRouter;
-        });
-        TraceReader.setReadStatistics(0, 300 * Timeline.SECOND, 100 * Timeline.MS, new MFPubSubRouter[]{originalRP.getV1(), newRP.getV1()});
-        long finish = Timeline.run();
-        System.out.printf("finish=%d%n", finish);
-        ro.endReport();
+                return pubRouter;
+            });
+
+            ro.beginReport();
+
+            TraceReader.setReadStatistics(0, 300 * Timeline.SECOND, 100 * Timeline.MS, new MFPubSubRouter[]{originalRP.getV1(), newRP.getV1()});
+//            TraceReader.setReadStatistics(0, 300 * Timeline.SECOND, 100 * Timeline.MS, newRP.getV1().unicastLinkStream().toArray(Node.UnicastLink[]::new));
+            Timeline.addEvent(130 * Timeline.SECOND, tmp -> {
+                writeQueue.setV1(true);
+            });
+
+            long finish = Timeline.run();
+
+            System.out.printf("finish=%d%n", finish);
+            ro.endReport();
+            ps.flush();
+        }
 
         queuePses.values().forEach(ps -> {
             ps.flush();
             ps.close();
         });
-
-        Files.write(Paths.get(resultFile),
-                (Iterable<String>) deliveries.entrySet().stream()
-                        .filter(e -> e.getValue().getV3() != Long.MIN_VALUE)
-                        .sorted((e1, e2) -> e1.getKey().getV3().compareTo(e2.getKey().getV3()))
-                        .map(e -> String.format("%d\t%s\t%d", e.getKey().getV3(), e.getValue().getV1(), e.getValue().getV3() - e.getValue().getV2()))::iterator
-        );
 
         Tuple1<Long> networkTraffic = new Tuple1<>(0L);
         routers.values().forEach(r -> {
@@ -291,7 +298,7 @@ public class TraceReaderTest {
                     PrioritizedQueue<MFApplicationPacketPublication> inner = new UnlimitedQueue<>();
                     ReportingQueue<MFApplicationPacketPublication, PrioritizedQueue<MFApplicationPacketPublication>> report = new ReportingQueue<>(name, inner, rpQueueConsumer);
                     return report;
-                }, () -> new UnlimitedQueue<>(),
+                }, name -> new UnlimitedQueue<>(),
                 100 * Node.BW_IN_MBPS);
 
         routers.get("Melbourne_+Australia3882").setFib(routers.get("Melbourne_+Australia751").getNa(), new Tuple2<>(routers.get("Melbourne_+Australia734"), 2032L));
