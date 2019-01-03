@@ -55,7 +55,7 @@ public class SubscriptionTableTest {
     }
 
     private void subscribe(Name n, String face, SubscriptionTable<String> sub1, SubscriptionTable<String> sub2) {
-        System.out.printf("===Sub %s===%n", n);
+        System.out.printf("===Sub %s->%s===%n", n, face);
         GpserPacketSubscription sub = new GpserPacketSubscription();
         sub.subscribe(n);
         System.out.printf("Before sub1: sub=%s%n", Arrays.toString(sub.getSubscriptions().toArray()));
@@ -70,7 +70,7 @@ public class SubscriptionTableTest {
     }
     
     private void unSubscribe(Name n, String face, SubscriptionTable<String> sub1, SubscriptionTable<String> sub2) {
-        System.out.printf("===UnSub %s===%n", n);
+        System.out.printf("===UnSub %s->%s===%n", n, face);
         GpserPacketSubscription sub = new GpserPacketSubscription();
         sub.unsubscribe(n);
         System.out.printf("Before sub1: sub=%s%n", Arrays.toString(sub.getSubscriptions().toArray()));
@@ -96,6 +96,14 @@ public class SubscriptionTableTest {
         subscribe(Name.getName(6), "F", sub1, sub2);
         subscribe(Name.getName(7), "G", sub1, sub2);
 
+        subscribe(Name.getName(1), "A2", sub1, sub2);
+        subscribe(Name.getName(2), "B2", sub1, sub2);
+        subscribe(Name.getName(3), "C2", sub1, sub2);
+        subscribe(Name.getName(4), "D2", sub1, sub2);
+        subscribe(Name.getName(5), "E2", sub1, sub2);
+        subscribe(Name.getName(6), "F2", sub1, sub2);
+        subscribe(Name.getName(7), "G2", sub1, sub2);
+        
         unSubscribe(Name.getName(7), "G", sub1, sub2);
         unSubscribe(Name.getName(6), "F", sub1, sub2);
         unSubscribe(Name.getName(5), "E", sub1, sub2);
@@ -103,6 +111,14 @@ public class SubscriptionTableTest {
         unSubscribe(Name.getName(3), "C", sub1, sub2);
         unSubscribe(Name.getName(2), "B", sub1, sub2);
         unSubscribe(Name.getName(1), "A", sub1, sub2);
+
+        unSubscribe(Name.getName(7), "G2", sub1, sub2);
+        unSubscribe(Name.getName(6), "F2", sub1, sub2);
+        unSubscribe(Name.getName(5), "E2", sub1, sub2);
+        unSubscribe(Name.getName(4), "D2", sub1, sub2);
+        unSubscribe(Name.getName(3), "C2", sub1, sub2);
+        unSubscribe(Name.getName(2), "B2", sub1, sub2);
+        unSubscribe(Name.getName(1), "A2", sub1, sub2);
     }
 
 }
