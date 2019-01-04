@@ -53,6 +53,13 @@ public class Name implements Data {
     public static Stream<Name> getExistingNames() {
         return EXISTING_NAMES.values().stream();
     }
+    
+    public static void clearExistingNames() {
+        EXISTING_NAMES.clear();
+        NODES_ANCESTORS.clear();
+        NODES_DESCENDENTS.clear();
+        TOPOLOGICAL_ORDER = null;
+    }
 
     public static Stream<Name> topologicalSort() {
         if (TOPOLOGICAL_ORDER == null) {

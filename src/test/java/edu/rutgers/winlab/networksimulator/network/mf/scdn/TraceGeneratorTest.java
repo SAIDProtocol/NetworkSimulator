@@ -44,7 +44,7 @@ public class TraceGeneratorTest {
     public void tearDown() {
     }
 
-    @Test
+//    @Test
     public void testSomeMethod() {
         double s = 1.0;
         int total = 10000, views = total * 10;

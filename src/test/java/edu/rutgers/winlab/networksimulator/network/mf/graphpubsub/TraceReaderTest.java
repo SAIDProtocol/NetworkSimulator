@@ -50,7 +50,7 @@ public class TraceReaderTest {
     public static void tearDownClass() {
     }
 
-    @Test
+//    @Test
     public void test1() throws IOException {
         String topologyPrefix = "/root/Rocketfuel/1221/";
         String wikiPrefix = "/root/Wiki/";

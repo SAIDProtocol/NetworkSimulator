@@ -157,7 +157,7 @@ public class ResultHandler {
 
     }
 
-    @Test
+//    @Test
     public void readResult() throws IOException {
         String resultFoldername = "./";
         String wikiFolderName = "/root/Wiki/";

@@ -22,6 +22,7 @@ public class GpserPacketSubscription implements Data {
         if (b == null) {
             subscriptions.put(name, true);
         } else if (!b) { // subscription after unsubsccription, cancel out
+//            LOG.log(Level.INFO, "subscription after unsubscription on name {0}, cancel out", name);
             subscriptions.remove(name);
         } else { // subscription after subscription, do nothing
             LOG.log(Level.WARNING, "subscription after subscription on name {0}", name);
@@ -33,6 +34,7 @@ public class GpserPacketSubscription implements Data {
         if (b == null) {
             subscriptions.put(name, false);
         } else if (b) { // unsubscription after subsccription, cancel out
+//            LOG.log(Level.INFO, "unsubscription after subscription on name {0}, cancel out", name);
             subscriptions.remove(name);
         } else {// unsubscription after unsubscription, do nothing
             LOG.log(Level.WARNING, "unsubscription after unsubscription on name {0}", name);

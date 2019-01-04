@@ -40,6 +40,7 @@ public class NameTest {
 
     @Test
     public void test1() {
+        Name.clearExistingNames();
         int[] parents = new int[]{3, 3, 5, 7, 7, 8, 11, 11, 11};
         int[] children = new int[]{8, 10, 11, 8, 11, 9, 2, 9, 10};
         for (int i = 0; i < parents.length; i++) {
